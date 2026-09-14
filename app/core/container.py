@@ -1,47 +1,56 @@
-"""Minimal DI container — composition root wiring, override-ready for tests.
+"""Composition root over the `di` library (0.79.2) — real, scoped DI.
 
-Adapted from doc: application/domain depend on ports; the composition root
-(`app/api/di.py`) and tests provide implementations.
-
-NOTE: this is the small, in-house seam used only until the `di`-library port
-lands (see app/api/di.py). It intentionally keeps a trivial surface so the
-substitution is mechanical.
+The `Container` facade retains the `register/resolve` surface the existing
+code relies on, but every resolution delegates to a `di.Container` through
+explicit `ScopeState`s. FastAPI glue lives in `app/api/di.py`; routes stop
+depending on `fastapi.Depends`.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any, TypeVar, cast
 
-from app.core.exceptions.taxonomy import ConfigurationError
+from di.api.scopes import Scope
 
-T = TypeVar("T")
+from di import Container as DiContainer
+from di import ScopeState
 
-Factory = Callable[[], Any]
+T = object
 
 
 class Container:
     def __init__(self) -> None:
-        self._registry: dict[type[Any], Factory] = {}
-        self._singletons: dict[type[Any], Any] = {}
+        self._di = DiContainer()
+        self._app_state = ScopeState()
+        self._app_state.enter_scope(Scope.APP)
 
-    def register(self, interface: type[T], factory: Factory) -> None:
-        self._registry[interface] = factory
+    def register(self, interface: type, factory: Callable[..., object]) -> None:
+        def _factory() -> object:
+            return factory()
 
-    def register_instance(self, interface: type[T], instance: Any) -> None:
-        self._registry[interface] = lambda: instance
-        self._singletons[interface] = instance
+        self._di.bind(_factory, provided_by=interface, scope=Scope.APP)
 
-    def override(self, interface: type[T], instance: Any) -> None:
-        """Test seam — temporarily replace implementation for a port."""
-        self._registry[interface] = lambda: instance
+    def register_instance(self, interface: type, instance: object) -> None:
+        def _factory() -> object:
+            return instance
 
-    def resolve(self, interface: type[T]) -> T:
-        if interface in self._singletons:
-            return cast(T, self._singletons[interface])
-        factory = self._registry.get(interface)
-        if factory is None:
-            raise ConfigurationError(f"No implementation registered for {interface.__name__}")
-        instance: Any = factory()
-        self._singletons[interface] = instance
-        return cast(T, instance)
+        self._di.bind(_factory, provided_by=interface, scope=Scope.APP)
+
+    def override(self, interface: type, instance: object) -> None:
+        """Test seam — substitute an implementation for a port."""
+        self.register_instance(interface, instance)
+
+    def resolve(self, interface: type, state: ScopeState | None = None) -> object:
+        scope_state = state if state is not None else self._app_state
+        solved = self._di.solve(interface, scope=Scope.REQUEST, state=scope_state)
+        return self._di.execute_sync(solved, scope_state)
+
+    async def aresolve(self, interface: type, state: ScopeState | None = None) -> object:
+        scope_state = state if state is not None else self._app_state
+        solved = self._di.solve(interface, scope=Scope.REQUEST, state=scope_state)
+        return await self._di.execute_async(solved, scope_state)
+
+    def enter_scope(self) -> ScopeState:
+        state = ScopeState(self._app_state)
+        state.enter_scope(Scope.REQUEST)
+        return state

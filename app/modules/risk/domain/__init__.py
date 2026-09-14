@@ -7,11 +7,10 @@ from app.modules.risk.domain.entities import (
     RiskDecision,
     RiskProfile,
 )
-from app.modules.risk.domain.ports import KillSwitchStore, RiskProfileStore
+from app.modules.risk.domain.ports import RiskProfileStore
 
 __all__ = [
     "KillSwitchState",
-    "KillSwitchStore",
     "KillSwitchTriggered",
     "RiskBreached",
     "RiskDecision",

@@ -1,7 +1,7 @@
-# SDLC Master Plan — Self-Improving AI Trading Agent
+# SDLC Master Plan â€” Self-Improving AI Trading Agent
 
-- **Status:** APPROVED (rev. 3 — VSA + unified Next.js 16 `web/`)
-- **Gate rule:** No business code before Phase 3 — S0/S1/S2 produce artifacts only.
+- **Status:** APPROVED (rev. 3 â€” VSA + unified Next.js 16 `web/`)
+- **Gate rule:** No business code before Phase 3 â€” S0/S1/S2 produce artifacts only.
 
 ---
 
@@ -10,23 +10,23 @@
 | Platform | Can host the Python engine? | Reality |
 |---|---|---|
 | Vercel | No | `Dockerfile.vercel` = Fluid compute: scale-to-zero, **30 s SIGTERM** on idle, **no WebSockets**, **no persistent disk**, Pro-only. OK for dashboard/web. |
-| Cloudflare Workers | No | Python via **Pyodide (WASM)** — no long-running processes, no durable sockets. |
+| Cloudflare Workers | No | Python via **Pyodide (WASM)** â€” no long-running processes, no durable sockets. |
 | Cloudflare Containers | Paid | GA Apr 2026; any Dockerfile at edge, billed per use. Fallback option. |
-| Minimal VPS / Fly.io / Railway free tier | **Yes — primary** | Needs 24/7 uptime, WebSockets, disk, long-running RL training. |
+| Minimal VPS / Fly.io / Railway free tier | **Yes â€” primary** | Needs 24/7 uptime, WebSockets, disk, long-running RL training. |
 
 **Target topology**
 
 ```
 BROWSER
-   │
-   ▼
-Cloudflare (DNS · CDN · WAF · DDoS · rate-limit)
-   │
-   ├──▶ web/  Next.js 16 (Workers Assets + Route Handlers + Edge middleware)  [PRIMARY]
-   │         …same package also deployable to Vercel unchanged                [FALLBACK]
-   │
-   └──▶ [Minimal VPS]  Docker  ──▶ Python Trading Engine (FastAPI, WS, workers)
-         ├─ PostgreSQL      ├─ ClickHouse      └─ Redis
+   â”‚
+   â–¼
+Cloudflare (DNS Â· CDN Â· WAF Â· DDoS Â· rate-limit)
+   â”‚
+   â”œâ”€â”€â–¶ web/  Next.js 16 (Workers Assets + Route Handlers + Edge middleware)  [PRIMARY]
+   â”‚         â€¦same package also deployable to Vercel unchanged                [FALLBACK]
+   â”‚
+   â””â”€â”€â–¶ [Minimal VPS]  Docker  â”€â”€â–¶ Python Trading Engine (FastAPI, WS, workers)
+         â”œâ”€ PostgreSQL      â”œâ”€ ClickHouse      â””â”€ Redis
 ```
 
 **Why:** neither Cloudflare nor Vercel can run long-lived Python processes on a free tier. Cloudflare and Vercel host the single unified web app (edge + UI); a minimal VPS runs the always-on Python engine.
@@ -35,18 +35,18 @@ Cloudflare (DNS · CDN · WAF · DDoS · rate-limit)
 
 ## 1. Requirements Summary
 
-1. **LLM-Powered Analysis** — OpenAI-compatible; default `https://opencode.ai/zen/v1` with free models (`nemotron-3-ultra-free`, `big-pickle`, …); provider/model configurable per user with **secrets never logged**; user-supplied provider keys supported.
-2. **Strategy Optimization** — auto-tune strategy parameters on live performance.
-3. **ML Model Retraining** — automatic retrain on new market data.
-4. **Reinforcement Learning** — reward-driven action learning (`gymnasium` env on paper engine).
-5. **All risk profiles** — conservative / aggressive / configurable + hard circuit breakers.
-6. **Loosely-coupled providers** — exchange / news / social / alt-data are pluggable (Strategy+Adapter+Factory). Best-practice OOP + design patterns, no over-engineering.
-7. **Enterprise-grade logging & error/exception handling** — structured logs, error taxonomy, correlation IDs, alerting, fail-closed risk.
-8. **Persistent + Timeseries DB** — PostgreSQL (transactions) + ClickHouse (analytics).
-9. **Real-time dashboard** — P&L, trades, model performance, strategy health, system health.
-10. **Production-grade testing** — **Integration-first and E2E-first** STLC (see §4).
+1. **LLM-Powered Analysis** â€” OpenAI-compatible; default `https://opencode.ai/zen/v1` with free models (`nemotron-3-ultra-free`, `big-pickle`, â€¦); provider/model configurable per user with **secrets never logged**; user-supplied provider keys supported.
+2. **Strategy Optimization** â€” auto-tune strategy parameters on live performance.
+3. **ML Model Retraining** â€” automatic retrain on new market data.
+4. **Reinforcement Learning** â€” reward-driven action learning (`gymnasium` env on paper engine).
+5. **All risk profiles** â€” conservative / aggressive / configurable + hard circuit breakers.
+6. **Loosely-coupled providers** â€” exchange / news / social / alt-data are pluggable (Strategy+Adapter+Factory). Best-practice OOP + design patterns, no over-engineering.
+7. **Enterprise-grade logging & error/exception handling** â€” structured logs, error taxonomy, correlation IDs, alerting, fail-closed risk.
+8. **Persistent + Timeseries DB** â€” PostgreSQL (transactions) + ClickHouse (analytics).
+9. **Real-time dashboard** â€” P&L, trades, model performance, strategy health, system health.
+10. **Production-grade testing** â€” **Integration-first and E2E-first** STLC (see Â§4).
 
-**Multi-asset:** Crypto (Binance) → Stocks (Alpaca) → Forex (OANDA) in that build order; adapter architecture makes later providers trivial.
+**Multi-asset:** Crypto (Binance) â†’ Stocks (Alpaca) â†’ Forex (OANDA) in that build order; adapter architecture makes later providers trivial.
 
 ---
 
@@ -56,31 +56,31 @@ Cloudflare (DNS · CDN · WAF · DDoS · rate-limit)
 
 ```
 /D:
-├─ app/           # Python trading engine — VSA modular monolith
-├─ web/           # SINGLE Next.js 16 app = dashboard + API edge + LLM proxy
-├─ docs/          # PRD, SDLC, STLC, DEVOPS, SYSTEM-DESIGN, SECURITY, CONVENTIONS
-├─ infra/         # Terraform, docker-compose, GitHub Actions, runbooks
-└─ pnpm-workspace.yaml   # one command starts the web app locally
+â”œâ”€ app/           # Python trading engine â€” VSA modular monolith
+â”œâ”€ web/           # SINGLE Next.js 16 app = dashboard + API edge + LLM proxy
+â”œâ”€ docs/          # PRD, SDLC, STLC, DEVOPS, SYSTEM-DESIGN, SECURITY, CONVENTIONS
+â”œâ”€ infra/         # Terraform, docker-compose, GitHub Actions, runbooks
+â””â”€ pnpm-workspace.yaml   # one command starts the web app locally
 ```
 
 ### 2.1 Vertical Slice Architecture (VSA / modular monolith)
 
-Each business capability = **one vertical slice**, fully self-contained: `api / application / domain / infrastructure / contracts`. Slices communicate only via **typed contracts** (domain events / commands) through the shared bus — never each other's internals.
+Each business capability = **one vertical slice**, fully self-contained: `api / application / domain / infrastructure / contracts`. Slices communicate only via **typed contracts** (domain events / commands) through the shared bus â€” never each other's internals.
 
 ```
 COMPOSITION ROOT  app/api (FastAPI) + app/workers
-        │
-SHARED KERNEL  core/  · config · logging · exceptions · auth · db ·
-                     · messaging(bus+outbox) · observability · common(Result[T,E])
-        │
-SLICES  marketdata · signals · sentiment · strategies · risk · trading ·
-        llm · selfimprovement · history · dashboard(read) · auth · alerts
+        â”‚
+SHARED KERNEL  core/  Â· config Â· logging Â· exceptions Â· auth Â· db Â·
+                     Â· messaging(bus+outbox) Â· observability Â· common(Result[T,E])
+        â”‚
+SLICES  marketdata Â· signals Â· sentiment Â· strategies Â· risk Â· trading Â·
+        llm Â· selfimprovement Â· history Â· dashboard(read) Â· auth Â· alerts
 ```
 
 **Enforcement (keeps it managed & scalable)**
-1. Slices depend on `core/` + `contracts/` only. `import-linter` (CI) blocks slice→slice internal imports.
+1. Slices depend on `core/` + `contracts/` only. `import-linter` (CI) blocks sliceâ†’slice internal imports.
 2. **Schema-per-context**: each slice owns its Postgres schema + ClickHouse DB; separate DB users per context.
-3. **Outbox pattern**: domain events fanned out atomically with the producing DB transaction → Redis Streams consumer groups → any slice can graduate to a service later without rewrites.
+3. **Outbox pattern**: domain events fanned out atomically with the producing DB transaction â†’ Redis Streams consumer groups â†’ any slice can graduate to a service later without rewrites.
 4. **CQRS-lite**: writes via commands; dashboard/analytics read from ClickHouse projections.
 
 ### 2.2 Slice ownership map
@@ -103,44 +103,44 @@ SLICES  marketdata · signals · sentiment · strategies · risk · trading ·
 ### 2.3 Communication & reliability (futuristic defaults)
 
 - `Result[T, E]` returns + typed error taxonomy (no try/except soup). Correlation ID threads through every call.
-- **Outbox** → at-least-once delivery, idempotent consumers (dedup by event id).
+- **Outbox** â†’ at-least-once delivery, idempotent consumers (dedup by event id).
 - **Anti-corruption layer** at every external provider; domain never sees vendor types.
-- **Bulkhead + Circuit breaker** per slice resource; failover chains (e.g. LLM → fallback model → local heuristic).
+- **Bulkhead + Circuit breaker** per slice resource; failover chains (e.g. LLM â†’ fallback model â†’ local heuristic).
 - **Feature flags + gradual rollout**; champion/challenger strategies ship behind flags.
 - **Extraction-ready**: monolith-first; events can always be "exported" later.
-- **Composition root** only wires DI / connections / queues — no hidden singletons.
+- **Composition root** only wires DI / connections / queues â€” no hidden singletons.
 
 ### 2.4 Package layout (Python `app/`)
 
 ```
 app/
-├─ core/                  # shared kernel (slices may NOT import app.modules.*)
-├─ modules/
-│  ├─ <slice>/  {api, application, domain, infrastructure, contracts}/
-├─ api/                   # composition root: main.py, routers.py, di.py
-└─ workers/               # queue/scheduler entrypoints
+â”œâ”€ core/                  # shared kernel (slices may NOT import app.modules.*)
+â”œâ”€ modules/
+â”‚  â”œâ”€ <slice>/  {api, application, domain, infrastructure, contracts}/
+â”œâ”€ api/                   # composition root: main.py, routers.py, di.py
+â””â”€ workers/               # queue/scheduler entrypoints
 ```
 
-Architecture tests in CI: `core⇢nothing; slices⇢core ✓; slices⇢slices ✗ (contracts only); modules⇢api ✗`
+Architecture tests in CI: `coreâ‡¢nothing; slicesâ‡¢core âœ“; slicesâ‡¢slices âœ— (contracts only); modulesâ‡¢api âœ—`
 
 ### 2.5 Unified `web/` (single Next.js 16 app)
 
 ```
-web/  (Next.js 16 · App Router · React 19 · TS · Tailwind 4)
-├─ app/
-│  ├─ (dashboard)/        # UI panels
-│  ├─ api/                # ROUTE HANDLERS = the edge/API layer
-│  │  ├─ trades/route.ts  # thin proxy → Python engine
-│  │  ├─ live/route.ts    # health/live forward
-│  │  ├─ llm/route.ts     # LLM proxy (opencode.ai/zen) — server-side keys only
-│  │  └─ auth/route.ts    # JWT issue/refresh
-│  ├─ middleware.ts       # EDGE middleware: JWT verify, basic rate-limit
-│  └─ …
-├─ lib/  components/  open-next.config.ts  wrangler.jsonc  next.config.ts
+web/  (Next.js 16 Â· App Router Â· React 19 Â· TS Â· Tailwind 4)
+â”œâ”€ app/
+â”‚  â”œâ”€ (dashboard)/        # UI panels
+â”‚  â”œâ”€ api/                # ROUTE HANDLERS = the edge/API layer
+â”‚  â”‚  â”œâ”€ trades/route.ts  # thin proxy â†’ Python engine
+â”‚  â”‚  â”œâ”€ live/route.ts    # health/live forward
+â”‚  â”‚  â”œâ”€ llm/route.ts     # LLM proxy (opencode.ai/zen) â€” server-side keys only
+â”‚  â”‚  â””â”€ auth/route.ts    # JWT issue/refresh
+â”‚  â”œâ”€ middleware.ts       # EDGE middleware: JWT verify, basic rate-limit
+â”‚  â””â”€ â€¦
+â”œâ”€ lib/  components/  open-next.config.ts  wrangler.jsonc  next.config.ts
 ```
 
 - **One instance, started together:** local `pnpm dev` runs the whole web app while `docker compose up` runs the engine.
-- **Primary deploy:** `opennextjs-cloudflare build && deploy` → UI + API edge deploy to Cloudflare Workers as one unit.
+- **Primary deploy:** `opennextjs-cloudflare build && deploy` â†’ UI + API edge deploy to Cloudflare Workers as one unit.
 - **Fallback deploy:** the same package deploys to Vercel unchanged. No separate Hono worker.
 - Edge constraints honored: Edge-safe `middleware.ts` (Next 16 `proxy.ts` is Node-only, unsupported on CF), heavy rate-limit via CF WAF, no request-time filesystem reads, KV incremental cache, CF Images, WS owned by the Python engine (`web/` is the WS client).
 
@@ -162,8 +162,8 @@ web/  (Next.js 16 · App Router · React 19 · TS · Tailwind 4)
 
 - Structured JSON logs (`structlog`) + `correlation_id`.
 - Error taxonomy: `RecoverableError`, `ProviderUnavailableError`, `ConfigValidationError`, `RiskBlockError`, `FatalSystemError`.
-- Unhandled-exception hooks → normalized envelope + metric increment.
-- Prometheus `/metrics` + Grafana; OTel traces → Tempo/Zipkin; Loki logs.
+- Unhandled-exception hooks â†’ normalized envelope + metric increment.
+- Prometheus `/metrics` + Grafana; OTel traces â†’ Tempo/Zipkin; Loki logs.
 
 ---
 
@@ -174,7 +174,7 @@ web/  (Next.js 16 · App Router · React 19 · TS · Tailwind 4)
 | 0 Planning | This doc + docs/* | Sign-off |
 | 1 Requirements | PRD, user stories, AC, data contracts | Sign-off |
 | 2 System Design | ADRs, schemas, OpenAPI, WS contract, ML design, threat model | Sign-off |
-| 3 Development | Sprint S0–S8 (below), TDD throughout | Green CI + coverage |
+| 3 Development | Sprint S0â€“S8 (below), TDD throughout | Green CI + coverage |
 | 4 Code Review | Pre-commit (ruff/mypy/bandit/semgrep), ADR conformance | Approval to test |
 | 5 Test (STLC) | See docs/STLC-PLAN.md | Green gates |
 | 6 DevOps | See docs/DEVOPS-PLAN.md | Deployed |
@@ -196,17 +196,17 @@ web/  (Next.js 16 · App Router · React 19 · TS · Tailwind 4)
 
 ---
 
-## 4. STLC / QA — Integration-first, E2E-first
+## 4. STLC / QA â€” Integration-first, E2E-first
 
 **Testing emphasis (per product decision): Integration and E2E testing are first-class; unit tests cover only pure core logic.**
 
-Target mix: **Integration ~45% · E2E ~35% · Unit ~20%**
+Target mix: **Integration ~45% Â· E2E ~35% Â· Unit ~20%**
 
 | # | Level | Tools | Scope |
 |---|---|---|---|
-| T1 | Test planning | Strategy doc, traceability matrix | Every req → ≥1 test |
+| T1 | Test planning | Strategy doc, traceability matrix | Every req â†’ â‰¥1 test |
 | T2 | Test design | Gherkin `.feature` | buy/hold/sell/risk-blowup |
-| T3 | **Integration** | pytest + **testcontainers** (real PG/ClickHouse/Redis) + **vcrpy** replay + WireMock | adapter↔bus, repo↔DB, slice↔slice over real infra; provider failures, outbox delivery |
+| T3 | **Integration** | pytest + **testcontainers** (real PG/ClickHouse/Redis) + **vcrpy** replay + WireMock | adapterâ†”bus, repoâ†”DB, sliceâ†”slice over real infra; provider failures, outbox delivery |
 | T4 | **E2E** | **Playwright** (web) + **API E2E** against a deployed env (Workers + VPS + DBs) | full order flow, LLM proxy, WS updates, risk kill-switch, strategy promotion |
 | T5 | Contract | pact-like between `web/` and engine API; slice contracts | schema drift prevention (OpenAPI) |
 | T6 | Backtest regression | walk-forward, seed-locked | retraining doesn't regress Sharpe/MDD |
@@ -219,22 +219,22 @@ Target mix: **Integration ~45% · E2E ~35% · Unit ~20%**
 **Gates**
 - Every PR: lint+type + unit + **integration suite (minimal subset, real containers)** + smoke E2E on preview env.
 - Every release candidate: **full integration suite + full E2E (Playwright + API E2E) against staging deployed stack**; chaos + load + security in RC hardening.
-- Long-runner rule: **no order is ever sent to live market during CI** — paper/`live-simulated` only.
+- Long-runner rule: **no order is ever sent to live market during CI** â€” paper/`live-simulated` only.
 
 ---
 
 ## 5. DevOps (see docs/DEVOPS-PLAN.md)
 
-Git (trunk+short branches, Conventional Commits) · GitHub Actions CI (`lint → mypy → unit → integration(testcontainers) → coverage ≥85% → SAST → E2E(playwright, preview) → build image`) · CD: VPS watchtower blue-green, `wrangler deploy` for web, Vercel fallback · Terraform (DNS/Workers/R2) · docker-compose for VPS · envs: dev → staging(paper) → prod(gated) · pydantic-settings + SOPS/age + .env.example · backups PG→R2, ClickHouse→R2 daily · SLOs 99.5% engine, p95 API<300ms, p95 WS<150ms, 0 silent order failures · runbooks (incident, kill-switch, exchange/LLM outage, drift).
+Git (trunk+short branches, Conventional Commits) Â· GitHub Actions CI (`lint â†’ mypy â†’ unit â†’ integration(testcontainers) â†’ coverage â‰¥85% â†’ SAST â†’ E2E(playwright, preview) â†’ build image`) Â· CD: VPS watchtower blue-green, `wrangler deploy` for web, Vercel fallback Â· Terraform (DNS/Workers/R2) Â· docker-compose for VPS Â· envs: dev â†’ staging(paper) â†’ prod(gated) Â· pydantic-settings + SOPS/age + .env.example Â· backups PGâ†’R2, ClickHouseâ†’R2 daily Â· SLOs 99.5% engine, p95 API<300ms, p95 WS<150ms, 0 silent order failures Â· runbooks (incident, kill-switch, exchange/LLM outage, drift).
 
 ---
 
 ## 6. Self-Improvement Loop
 
 ```
-Performance Logs → 1. Score/cohort → 2. Optimizer (grid/GA) → 3. Retrain ML
-                 → 4. RL reward-walk → 5. LLM meta-analysis → 6. Walk-forward
-                 validation (held-out) + paper shadow A/B ≥14d → promote
+Performance Logs â†’ 1. Score/cohort â†’ 2. Optimizer (grid/GA) â†’ 3. Retrain ML
+                 â†’ 4. RL reward-walk â†’ 5. LLM meta-analysis â†’ 6. Walk-forward
+                 validation (held-out) + paper shadow A/B â‰¥14d â†’ promote
                  champion or revert (rolled-back via model_registry)
 ```
 
@@ -253,15 +253,15 @@ Performance Logs → 1. Score/cohort → 2. Optimizer (grid/GA) → 3. Retrain M
 
 ## 8. Execution Prompts (after sign-off)
 
-1. **P0 — Repo init:** create repo skeleton per §2 (dirs, docs filled from plan, AGENTS.md, .editorconfig, .gitignore, pre-commit, Conventional Commits, import-linter constraints). No business logic.
-2. **P1 — Foundations:** Python package: pydantic-settings config + .env.example, structlog with correlation_id, domain models + `Result[T,E]` + exception taxonomy, repository interfaces. Unit tests for order-state machine & position math. Gates: mypy+ruff clean, coverage ≥85%.
-3. **P2 — Data layer:** Postgres migrations (Alembic, schema-per-context), ClickHouse DDL + writer, Redis + outbox event bus. Integration tests with testcontainers.
-4. **P3 — Ingestion:** `marketdata` + `sentiment` adapters (ccxt Binance, NewsAPI, Reddit) via Factory registry; CircuitBreaker + structured logging. **Integration tests (vcrpy real-recorded fixtures) + contract tests.**
-5. **P4 — Strategies & Execution:** Strategy framework + backtest harness (walk-forward); `risk` fail-closed gate; `trading` paper executor + state machine. Integration tests of risk→executor chain; seeded backtest gates.
-6. **P5 — LLM layer:** LLM Provider abstraction (Zen default + fallback chain), sentiment consumer, decision fusion. Integration tests with mocked + recorded provider responses and failover verification.
-7. **P6 — Self-improvement loop:** reward→optimizer→retrain→RL; champion/challenger + promotion gate with walk-forward; MLflow-recorder. Backtest-regression + E2E promotion scenario (paper).
-8. **P7 — Unified web app:** Next.js 16 `web/` — dashboard, Route Handlers (auth/trades/live/llm proxy→Zen), Edge middleware; `@opennextjs/cloudflare` deploy + Vercel portability check. **E2E with Playwright against deployed Workers; API E2E against deployed stack.**
-9. **P8 — DevOps/QA hardening:** GitHub Actions CI/CD per §5; Terraform; chaos + load + security audits; runbooks + Grafana/Loki; **full integration + E2E regression** for the release candidate.
+1. **P0 â€” Repo init:** create repo skeleton per Â§2 (dirs, docs filled from plan, AGENTS.md, .editorconfig, .gitignore, pre-commit, Conventional Commits, import-linter constraints). No business logic.
+2. **P1 â€” Foundations:** Python package: pydantic-settings config + .env.example, structlog with correlation_id, domain models + `Result[T,E]` + exception taxonomy, repository interfaces. Unit tests for order-state machine & position math. Gates: mypy+ruff clean, coverage â‰¥85%.
+3. **P2 â€” Data layer:** Postgres migrations (Alembic, schema-per-context), ClickHouse DDL + writer, Redis + outbox event bus. Integration tests with testcontainers.
+4. **P3 â€” Ingestion:** `marketdata` + `sentiment` adapters (ccxt Binance, NewsAPI, Reddit) via Factory registry; CircuitBreaker + structured logging. **Integration tests (vcrpy real-recorded fixtures) + contract tests.**
+5. **P4 â€” Strategies & Execution:** Strategy framework + backtest harness (walk-forward); `risk` fail-closed gate; `trading` paper executor + state machine. Integration tests of riskâ†’executor chain; seeded backtest gates.
+6. **P5 â€” LLM layer:** LLM Provider abstraction (Zen default + fallback chain), sentiment consumer, decision fusion. Integration tests with mocked + recorded provider responses and failover verification.
+7. **P6 â€” Self-improvement loop:** rewardâ†’optimizerâ†’retrainâ†’RL; champion/challenger + promotion gate with walk-forward; MLflow-recorder. Backtest-regression + E2E promotion scenario (paper).
+8. **P7 â€” Unified web app:** Next.js 16 `web/` â€” dashboard, Route Handlers (auth/trades/live/llm proxyâ†’Zen), Edge middleware; `@opennextjs/cloudflare` deploy + Vercel portability check. **E2E with Playwright against deployed Workers; API E2E against deployed stack.**
+9. **P8 â€” DevOps/QA hardening:** GitHub Actions CI/CD per Â§5; Terraform; chaos + load + security audits; runbooks + Grafana/Loki; **full integration + E2E regression** for the release candidate.
 
 ---
 
@@ -269,7 +269,7 @@ Performance Logs → 1. Score/cohort → 2. Optimizer (grid/GA) → 3. Retrain M
 
 | Rev | Change | Approved |
 |---|---|---|
-| 1 | Baseline plan (SDLC/STLC/QA/DevOps/System Design) | — |
-| 2 | Vertical Slice Architecture (VSA), schema-per-context, outbox, import-linter | — |
+| 1 | Baseline plan (SDLC/STLC/QA/DevOps/System Design) | â€” |
+| 2 | Vertical Slice Architecture (VSA), schema-per-context, outbox, import-linter | â€” |
 | 3 | Unified single Next.js 16 `web/` (dashboard + edge), CF Workers primary / Vercel fallback | Approved |
 | 3.1 | STLC emphasis: **Integration-first, E2E-first** (45/35/20) | Approved |

@@ -60,11 +60,22 @@ class AuthSettings(BaseModel):
     refresh_ttl_days: int = 7
 
 
+class SelfImproveSettings(BaseModel):
+    """Improve-until-plateau event-loop knobs."""
+
+    enabled: bool = False
+    round_interval_sec: float = 300.0
+    max_stale_rounds: int = 3
+    max_rounds: int | None = None
+    symbol: str = "BTC/USDT"
+    timeframe: str = "1h"
+    lookback_days: int = 60
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        env_nested_delimiter="__",
         extra="ignore",
     )
 
@@ -78,6 +89,7 @@ class Settings(BaseSettings):
 
     market_data: MarketDataSettings = Field(default_factory=MarketDataSettings)
     llm: LlmSettings = Field(default_factory=LlmSettings)
+    self_improve: SelfImproveSettings = Field(default_factory=SelfImproveSettings)
 
     event_bus: str = "in_memory"  # in_memory | redis_streams
 

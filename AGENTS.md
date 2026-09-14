@@ -40,3 +40,22 @@ Exact flags may vary per sprint; keep this file in sync with `docs/CONVENTIONS.m
 ## Testing stack (non-negotiable)
 
 pytest + testcontainers + vcrpy + Playwright + WireMock | mypy/ruff gates | coverage ≥85% | seeded/seed-locked backtests.
+
+## Improve-until-plateau loop (optimization sprints / self-improvement)
+
+When the task is "make the app better" (optimization sprint or `selfimprovement` slice work), do **not** tweak once and stop. Run an **event loop of rounds** until the app stops getting better, then stop and report.
+
+1. **Baseline first** — capture the metric before touching code: `uv run ruff check app tests`, `uv run mypy app`, `uv run pytest -q`, plus the backtest score you are optimizing (e.g. win rate / drawdown / Sharpe).
+2. **One scoped change per round** — never batch unrelated edits into a single round.
+3. **Verify every round** — re-run all gates. A regression in lint/mypy/tests/coverage fails the round (revert or fix before the next round).
+4. **Measure** — re-capture the metric and compare to the best-so-far.
+5. **Promote or revert** — improved → keep (Conventional Commit); equal → revert and try another angle; worse → revert.
+6. **Stop on plateau** — after `max_stale_rounds` (default **3**) consecutive non-improving rounds, STOP. Do not chase infinite tweaks. Report: baseline → final, what was tried, what won, why each loser lost.
+7. **Events/LLM agents:** signal every round/promotion/plateau via the event bus and `get_logger("app.workers.runner")` (see `app/workers/runner.py`) so other agents/LLMs can observe the loop and continue from `best` rather than restarting.
+
+### How to run it as an event loop
+
+- **Engine event loop** (the runtime self-improvement cycle): `uv run python -m app.workers.runner`. It builds the container, runs the `ImproveUntilPlateau` loop (each round = a `RoundStep` through `Container`), promotes on metric improvement, plateaus after `max_stale_rounds`, and shuts down gracefully on SIGINT/SIGTERM. Tuned via `SELF_IMPROVE__*` env vars (see `.env.example`).
+- **Agent dev loop** (you, the coding agent): the verify→measure→promote cycle above IS the loop; run it inside the same shell session, one round per asyncio iteration, with `max_rounds`/plateau guardrails. Do not make a coding agent run indefinitely without a stop condition.
+
+**Guardrails:** never loosen the fail-closed risk gate; never drop coverage below 85%; never skip a gate; self-improvement can never override the risk manager; every change stays rollbackable (single commit per round).
