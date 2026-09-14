@@ -1,0 +1,39 @@
+"""auth ports: capability contracts for identity, keys, and tokens."""
+
+from __future__ import annotations
+
+from typing import Protocol
+
+from app.modules.auth.domain.entities import ApiKey, TokenClaims, TokenPair, User
+
+
+class UserRepository(Protocol):
+    async def get_by_username(self, username: str) -> User | None: ...
+
+    async def get_by_id(self, user_id) -> User | None: ...
+
+    async def save(self, user: User) -> None: ...
+
+
+class ApiKeyRepository(Protocol):
+    async def save(self, api_key: ApiKey) -> None: ...
+
+    async def find_by_prefix(self, key_prefix: str) -> ApiKey | None: ...
+
+    async def revoke(self, key_id) -> None: ...
+
+    async def list_by_user(self, user_id) -> list[ApiKey]: ...
+
+
+class PasswordHasher(Protocol):
+    def hash(self, password: str) -> str: ...
+
+    def verify(self, password: str, hashed: str) -> bool: ...
+
+
+class TokenManager(Protocol):
+    async def issue(self, user: User, refresh_token: str | None = None) -> TokenPair: ...
+
+    async def verify_access(self, token: str) -> TokenClaims: ...
+
+    async def verify_refresh(self, token: str) -> TokenClaims: ...

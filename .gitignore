@@ -1,0 +1,53 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+cassettes_ignore/
+
+# ---- Node / Next.js ----
+node_modules/
+.next/
+out/
+next-env.d.ts
+.turbo/
+*.tsbuildinfo
+
+# ---- Cloudflare / wrangler ----
+.wrangler/
+.dev.vars
+
+# ---- Env / secrets ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ---- Data ----
+data/
+*.csv.backup
+*.sql.backup
+
+# ---- Infra / Terraform ----
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# ---- Docker ----
+docker/postgres-data/
+docker/clickhouse-data/
+docker/redis-data/
+
+# ---- OS / IDE ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

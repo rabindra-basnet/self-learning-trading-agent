@@ -1,0 +1,1 @@
+"""signals infrastructure (outbound adapters)."""

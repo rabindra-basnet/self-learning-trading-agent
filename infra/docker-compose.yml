@@ -1,0 +1,66 @@
+services:
+  dbgate:
+    image: dbgate/dbgate:latest
+    container_name: trading-dbgate
+    restart: unless-stopped
+    ports:
+      - "8080:3000"
+    environment:
+      CONNECTIONS: postgres,redis,clickhouse
+      LABEL_postgres: PostgreSQL
+      SERVER_postgres: postgres
+      PORT_postgres: 5432
+      DATABASE_postgres: trading
+      USER_postgres: trading
+      PASSWORD_postgres: trading
+      ENGINE_postgres: postgres@dbgate-plugin-postgres
+      LABEL_redis: Redis
+      SERVER_redis: redis
+      PORT_redis: 6379
+      ENGINE_redis: redis@dbgate-plugin-redis
+      LABEL_clickhouse: ClickHouse
+      SERVER_clickhouse: clickhouse
+      PORT_clickhouse: 8123
+      DATABASE_clickhouse: trading
+      USER_clickhouse: default
+      PASSWORD_clickhouse: trading
+      ENGINE_clickhouse: clickhouse@dbgate-plugin-clickhouse
+    volumes:
+      - dbgate_data:/root/.dbgate
+    depends_on:
+      - postgres
+      - redis
+      - clickhouse
+
+  postgres:
+    image: postgres:18
+    container_name: trading-postgres
+    environment:
+      POSTGRES_USER: trading
+      POSTGRES_PASSWORD: trading
+      POSTGRES_DB: trading
+    volumes:
+      - postgres_data:/var/lib/postgresql
+
+  redis:
+    image: redis:8
+    container_name: trading-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: trading-clickhouse
+    environment:
+      CLICKHOUSE_DB: trading
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: trading
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+
+volumes:
+  dbgate_data:
+  postgres_data:
+  redis_data:
+  clickhouse_data:

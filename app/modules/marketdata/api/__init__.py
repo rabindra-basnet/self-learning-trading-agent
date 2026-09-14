@@ -1,0 +1,1 @@
+"""marketdata inbound adapter package."""

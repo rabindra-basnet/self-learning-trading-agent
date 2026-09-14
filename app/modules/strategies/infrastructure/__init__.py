@@ -1,0 +1,1 @@
+"""strategies infrastructure (outbound adapters)."""

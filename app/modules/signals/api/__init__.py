@@ -1,0 +1,1 @@
+"""signals inbound adapter package."""

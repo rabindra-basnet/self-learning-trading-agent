@@ -1,0 +1,210 @@
+[project]
+name = "trading-agent-app"
+version = "0.1.0"
+description = "Self-improving AI trading agent — VSA modular monolith, Ports & Adapters"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.32",
+  "pydantic>=2.10",
+  "pydantic-settings>=2.6",
+  "structlog>=24.4",
+  "sqlalchemy[asyncio]>=2.0.36",
+  "asyncpg>=0.30",
+  "alembic>=1.14",
+  "clickhouse-connect>=0.8",
+  "redis>=5.2",
+  "ccxt>=4.4",
+  "pandas>=2.2",
+  "numpy>=2.0",
+  "httpx>=0.28",
+  "PyJWT>=2.10",
+  "python-dotenv>=1.0",
+  "di[fastapi]>=0.79.2",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3",
+  "pytest-asyncio>=0.24",
+  "pytest-mock>=3.14",
+  "hypothesis>=6.119",
+  "vcrpy>=7.0",
+  "respx>=0.21",
+  "testcontainers[postgres,clickhouse,redis]>=4.8",
+  "mypy>=1.13",
+  "ruff>=0.8",
+  "import-linter>=2.0",
+  "types-redis>=4.6",
+  "types-PyYAML>=6.0",
+  "types-PyJWT>=1.7.1,<2.0",
+]
+
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-m unit -q --tb=short"
+markers = [
+  "unit: pure domain/application tests (fast, no IO)",
+  "integration: real containers + provider cassettes (testcontainers/vcrpy)",
+  "e2e: full stack via in-memory/embedded adapters or deployed env",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+src = ["app", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC", "RUF"]
+ignore = ["RUF012"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+pretty = true
+show_error_codes = true
+plugins = ["pydantic.mypy"]
+exclude = ["app/infrastructure/providers/strategies/library.py"]
+
+[[tool.mypy.overrides]]
+module = [
+  "ccxt.*",
+  "clickhouse_connect.*",
+  "structlog.*",
+  "vcrpy.*",
+  "testcontainers.*",
+  "pytest_mock.*",
+  "hypothesis.*",
+  "respx.*",
+]
+ignore_missing_imports = true
+
+[tool.importlinter]
+root_package = "app"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Core imports nothing from app"
+type = "forbidden"
+source_modules = ["app.core"]
+forbidden_modules = ["app.modules", "app.infrastructure", "app.api", "app.workers"]
+
+[[tool.importlinter.contracts]]
+name = "auth stays internal to its slice"
+type = "forbidden"
+source_modules = ["app.modules.auth.domain", "app.modules.auth.application", "app.modules.auth.api"]
+forbidden_modules = [
+  "app.modules.marketdata",
+  "app.modules.signals",
+  "app.modules.strategies",
+  "app.modules.backtest",
+  "app.modules.risk",
+  "app.infrastructure",
+]
+
+[[tool.importlinter.contracts]]
+name = "marketdata stays internal to its slice"
+type = "forbidden"
+source_modules = ["app.modules.marketdata.domain", "app.modules.marketdata.application", "app.modules.marketdata.api"]
+forbidden_modules = [
+  "app.modules.auth",
+  "app.modules.signals",
+  "app.modules.strategies",
+  "app.modules.backtest",
+  "app.modules.risk",
+  "app.infrastructure",
+]
+
+[[tool.importlinter.contracts]]
+name = "signals stays internal to its slice"
+type = "forbidden"
+source_modules = ["app.modules.signals.domain", "app.modules.signals.application", "app.modules.signals.api"]
+forbidden_modules = [
+  "app.modules.auth",
+  "app.modules.marketdata",
+  "app.modules.strategies",
+  "app.modules.backtest",
+  "app.modules.risk",
+  "app.infrastructure",
+]
+
+[[tool.importlinter.contracts]]
+name = "strategies stays internal to its slice"
+type = "forbidden"
+source_modules = ["app.modules.strategies.domain", "app.modules.strategies.application", "app.modules.strategies.api"]
+forbidden_modules = [
+  "app.modules.auth",
+  "app.modules.marketdata",
+  "app.modules.signals",
+  "app.modules.backtest",
+  "app.modules.risk",
+  "app.infrastructure",
+]
+
+[[tool.importlinter.contracts]]
+name = "backtest stays internal to its slice"
+type = "forbidden"
+source_modules = ["app.modules.backtest.domain", "app.modules.backtest.application", "app.modules.backtest.api"]
+forbidden_modules = [
+  "app.modules.auth",
+  "app.modules.marketdata",
+  "app.modules.signals",
+  "app.modules.strategies",
+  "app.modules.risk",
+  "app.infrastructure",
+]
+
+[[tool.importlinter.contracts]]
+name = "risk stays internal to its slice"
+type = "forbidden"
+source_modules = ["app.modules.risk.domain", "app.modules.risk.application", "app.modules.risk.api"]
+forbidden_modules = [
+  "app.modules.auth",
+  "app.modules.marketdata",
+  "app.modules.signals",
+  "app.modules.strategies",
+  "app.modules.backtest",
+  "app.infrastructure",
+]
+
+[[tool.importlinter.contracts]]
+name = "Domain and application layers are provider-free"
+type = "forbidden"
+source_modules = [
+  "app.modules.auth.domain",
+  "app.modules.auth.application",
+  "app.modules.marketdata.domain",
+  "app.modules.marketdata.application",
+  "app.modules.signals.domain",
+  "app.modules.signals.application",
+  "app.modules.strategies.domain",
+  "app.modules.strategies.application",
+  "app.modules.backtest.domain",
+  "app.modules.backtest.application",
+  "app.modules.risk.domain",
+  "app.modules.risk.application",
+]
+forbidden_modules = [
+  "ccxt",
+  "pandas",
+  "numpy",
+  "httpx",
+  "asyncpg",
+  "sqlalchemy",
+  "alembic",
+  "clickhouse_connect",
+  "redis",
+  "jwt",
+  "fastapi",
+  "uvicorn",
+  "pydantic_settings",
+  "structlog",
+]

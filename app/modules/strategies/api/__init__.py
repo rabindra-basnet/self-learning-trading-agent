@@ -1,0 +1,1 @@
+"""strategies inbound adapter package."""

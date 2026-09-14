@@ -1,0 +1,1 @@
+"""auth inbound adapter package."""
