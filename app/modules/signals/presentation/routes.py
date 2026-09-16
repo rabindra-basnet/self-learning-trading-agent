@@ -8,7 +8,7 @@ from fastapi import APIRouter, Request
 
 from app.modules.marketdata.application.services import CandleQueryService
 from app.modules.marketdata.domain.entities import Symbol, Timeframe
-from app.modules.signals.api.schemas import FeatureVectorResponse
+from app.modules.signals.presentation.schemas import FeatureVectorResponse
 from app.modules.signals.application.services import FeatureService
 
 router = APIRouter(prefix="/signals", tags=["signals"])

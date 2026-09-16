@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from app.core.common.result import Err
 from app.core.exceptions.taxonomy import http_status_for
-from app.modules.backtest.api.schemas import BacktestRunRequest, BacktestRunResponse
+from app.modules.backtest.presentation.schemas import BacktestRunRequest, BacktestRunResponse
 from app.modules.backtest.application.engine import BacktestEngine
 from app.modules.backtest.domain.entities import BacktestConfig
 

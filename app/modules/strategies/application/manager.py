@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from app.modules.strategies.api.schemas import StrategyMeta
+from app.modules.strategies.presentation.schemas import StrategyMeta
 from app.modules.strategies.domain.ports import SignalDirection, Strategy
 
 

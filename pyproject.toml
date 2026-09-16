@@ -100,7 +100,7 @@ forbidden_modules = ["app.modules", "app.infrastructure", "app.api", "app.worker
 [[tool.importlinter.contracts]]
 name = "auth stays internal to its slice"
 type = "forbidden"
-source_modules = ["app.modules.auth.domain", "app.modules.auth.application", "app.modules.auth.api"]
+source_modules = ["app.modules.auth.domain", "app.modules.auth.application", "app.modules.auth.presentation"]
 forbidden_modules = [
   "app.modules.marketdata",
   "app.modules.signals",
@@ -113,7 +113,7 @@ forbidden_modules = [
 [[tool.importlinter.contracts]]
 name = "marketdata stays internal to its slice"
 type = "forbidden"
-source_modules = ["app.modules.marketdata.domain", "app.modules.marketdata.application", "app.modules.marketdata.api"]
+source_modules = ["app.modules.marketdata.domain", "app.modules.marketdata.application", "app.modules.marketdata.presentation"]
 forbidden_modules = [
   "app.modules.auth",
   "app.modules.signals",
@@ -126,7 +126,7 @@ forbidden_modules = [
 [[tool.importlinter.contracts]]
 name = "signals stays internal to its slice"
 type = "forbidden"
-source_modules = ["app.modules.signals.domain", "app.modules.signals.application", "app.modules.signals.api"]
+source_modules = ["app.modules.signals.domain", "app.modules.signals.application", "app.modules.signals.presentation"]
 forbidden_modules = [
   "app.modules.auth",
   "app.modules.marketdata",
@@ -139,7 +139,7 @@ forbidden_modules = [
 [[tool.importlinter.contracts]]
 name = "strategies stays internal to its slice"
 type = "forbidden"
-source_modules = ["app.modules.strategies.domain", "app.modules.strategies.application", "app.modules.strategies.api"]
+source_modules = ["app.modules.strategies.domain", "app.modules.strategies.application", "app.modules.strategies.presentation"]
 forbidden_modules = [
   "app.modules.auth",
   "app.modules.marketdata",
@@ -152,7 +152,7 @@ forbidden_modules = [
 [[tool.importlinter.contracts]]
 name = "backtest stays internal to its slice"
 type = "forbidden"
-source_modules = ["app.modules.backtest.domain", "app.modules.backtest.application", "app.modules.backtest.api"]
+source_modules = ["app.modules.backtest.domain", "app.modules.backtest.application", "app.modules.backtest.presentation"]
 forbidden_modules = [
   "app.modules.auth",
   "app.modules.marketdata",
@@ -165,7 +165,7 @@ forbidden_modules = [
 [[tool.importlinter.contracts]]
 name = "risk stays internal to its slice"
 type = "forbidden"
-source_modules = ["app.modules.risk.domain", "app.modules.risk.application", "app.modules.risk.api"]
+source_modules = ["app.modules.risk.domain", "app.modules.risk.application", "app.modules.risk.presentation"]
 forbidden_modules = [
   "app.modules.auth",
   "app.modules.marketdata",

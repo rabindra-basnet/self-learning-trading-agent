@@ -2,7 +2,7 @@
 
 The `Container` facade retains the `register/resolve` surface the existing
 code relies on, but every resolution delegates to a `di.Container` through
-explicit `ScopeState`s. FastAPI glue lives in `app/api/di.py`; routes stop
+explicit `ScopeState`s. FastAPI glue lives in `app/di.py`; routes stop
 depending on `fastapi.Depends`.
 """
 
