@@ -10,7 +10,7 @@ from app.core.common.result import Err, Result
 from app.core.container import Container
 from app.core.exceptions.taxonomy import http_status_for
 from app.core.logging.setup import get_logger
-from app.modules.auth.api.schemas import (
+from app.modules.auth.presentation.schemas import (
     ApiKeyRequest,
     ApiKeyResponse,
     ApiKeySecretResponse,
@@ -23,7 +23,7 @@ from app.modules.auth.application.services import ApiKeyService, AuthService
 from app.modules.auth.domain.entities import Role, TokenClaims, User
 from app.modules.auth.domain.ports import UserRepository
 
-logger = get_logger("auth.api")
+logger = get_logger("auth.presentation")
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 

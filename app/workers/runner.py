@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import cast
 
-from app.api.di import build_container, initialize, shutdown
+from app.di import build_container, initialize, shutdown
 from app.core.config.settings import get_settings
 from app.core.container import Container
 from app.core.logging.setup import get_logger

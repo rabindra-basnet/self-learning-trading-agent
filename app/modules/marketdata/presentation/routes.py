@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from app.core.common.result import Err
 from app.core.exceptions.taxonomy import http_status_for
-from app.modules.marketdata.api.schemas import CandleSummary, SyncRequest
+from app.modules.marketdata.presentation.schemas import CandleSummary, SyncRequest
 from app.modules.marketdata.application.services import CandleIngestService, CandleQueryService
 from app.modules.marketdata.domain.entities import Symbol, Timeframe
 

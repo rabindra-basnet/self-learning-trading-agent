@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from fastapi import APIRouter, Request
 
-from app.modules.risk.api.schemas import (
+from app.modules.risk.presentation.schemas import (
     KillSwitchRequest,
     RiskDecisionResponse,
     RiskProfileResponse,

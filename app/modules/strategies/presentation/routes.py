@@ -6,7 +6,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from app.modules.strategies.api.schemas import EvaluateResponse, StrategyMeta
+from app.modules.strategies.presentation.schemas import EvaluateResponse, StrategyMeta
 from app.modules.strategies.application.manager import StrategyManager
 
 router = APIRouter(prefix="/strategies", tags=["strategies"])
