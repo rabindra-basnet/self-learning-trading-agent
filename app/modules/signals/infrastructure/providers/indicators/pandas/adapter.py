@@ -10,6 +10,12 @@ from app.modules.signals.domain.entities import FeatureVector
 
 
 class PandasFeatureComputer:
+    async def __connect__(self) -> None:
+        pass
+
+    async def __disconnect__(self) -> None:
+        pass
+
     """FeatureComputer implemented with pandas-ta style indicator math."""
 
     def compute(self, candles: Sequence[Candle], features: list[str] | None = None) -> list[FeatureVector]:

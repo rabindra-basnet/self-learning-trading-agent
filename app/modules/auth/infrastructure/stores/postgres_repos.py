@@ -11,9 +11,9 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import Integer, String, Text, select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from app.infrastructure.capability.database.postgres import PostgresConnection
 from app.modules.auth.domain.entities import ApiKey, Role, User
 
 
@@ -45,8 +45,14 @@ class ApiKeyRow(AuthBase):
 
 
 class PostgresUserRepository:
-    def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
-        self._session_factory = session_factory
+    async def __connect__(self) -> None:
+        pass
+
+    async def __disconnect__(self) -> None:
+        pass
+
+    def __init__(self, postgres: PostgresConnection) -> None:
+        self._session_factory = postgres.session_factory
 
     async def get_by_username(self, username: str) -> User | None:
         async with self._session_factory() as session:
@@ -83,8 +89,14 @@ class PostgresUserRepository:
 
 
 class PostgresApiKeyRepository:
-    def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
-        self._session_factory = session_factory
+    async def __connect__(self) -> None:
+        pass
+
+    async def __disconnect__(self) -> None:
+        pass
+
+    def __init__(self, postgres: PostgresConnection) -> None:
+        self._session_factory = postgres.session_factory
 
     async def save(self, api_key: ApiKey) -> None:
         async with self._session_factory() as session:

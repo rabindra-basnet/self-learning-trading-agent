@@ -1,25 +1,41 @@
 """In-process strategy catalog adapter — builtins only.
 
 Strategies are code objects; this store maps each strategy_id to its singleton
-implementation so `evaluate()` can run in-process without a round-trip.
+Strategy instance so runners can resolve names.
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from typing import Any
 
 from app.modules.strategies.domain.ports import Strategy
+from app.modules.strategies.infrastructure.providers.strategies.library import BUILTIN_STRATEGIES
 
 
 class StrategyLibraryStore:
-    def __init__(self, strategies: Mapping[str, Strategy]) -> None:
-        self._strategies = dict(strategies)
+    def __init__(self) -> None:
+        self._strategies: dict[str, Strategy] = {}
 
-    async def put(self, strategy: Strategy) -> None:
+    async def __connect__(self) -> None:
+        self._strategies = dict(BUILTIN_STRATEGIES)
+
+    async def __disconnect__(self) -> None:
+        pass
+
+    def register(self, strategy: Strategy) -> None:
         self._strategies[strategy.strategy_id] = strategy
 
-    async def get(self, strategy_id: str) -> Strategy | None:
+    def get(self, strategy_id: str) -> Strategy | None:
         return self._strategies.get(strategy_id)
 
-    async def all(self) -> list[Strategy]:
-        return list(self._strategies.values())
+    def list_meta(self) -> list[Any]:
+        from app.modules.strategies.domain.entities import StrategyMeta
+
+        return [
+            StrategyMeta(
+                strategy_id=sid,
+                name=s.params.name,
+                params=s.params.model_dump(),
+            )
+            for sid, s in self._strategies.items()
+        ]

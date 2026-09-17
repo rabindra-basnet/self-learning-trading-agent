@@ -118,6 +118,27 @@ Gate selection:
 
 ---
 
+## db: Schema migrations (flow by flow)
+
+Each feature flow that touches Postgres lands its tables as one numbered Alembic
+revision, generated from the ORM models. Autogenerate reads `Base.metadata`
+(`app/infrastructure/capability/database/base.py`), and `migrations/env.py`
+imports every slice's model module so its tables are seen. The `include_object`
+guard keeps autogenerate from touching tables this app does not own.
+
+```bash
+# 1. Define/change models: inherit from `Base`, then
+uv run alembic revision --autogenerate --rev-id 01 -m "feature flow tables"  # 00, 01, 02... in order
+uv run alembic upgrade head   # apply to the configured DATABASE_URL (Neon/CI/local)
+uv run alembic current        # show the applied revision
+uv run alembic downgrade -1   # roll back exactly one revision
+uv run alembic check          # CI drift guard: fails if models and migrations disagree
+```
+
+Existing revisions: `00_auth_users_and_api_keys.py` (auth users + api_keys).
+
+---
+
 ## check: Quick architecture check
 
 ```bash

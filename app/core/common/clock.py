@@ -5,12 +5,14 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Protocol
 
+from magic_di import Connectable
+
 
 class Clock(Protocol):
     def utcnow(self) -> datetime: ...
 
 
-class SystemClock:
+class SystemClock(Connectable):
     def utcnow(self) -> datetime:
         return datetime.now(UTC)
 

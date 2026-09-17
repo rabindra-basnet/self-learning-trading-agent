@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import cast
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException
+from magic_di.fastapi import Provide
 
 from app.core.exceptions.taxonomy import http_status_for
 from app.modules.backtest.application.engine import BacktestEngine
@@ -16,13 +16,8 @@ from app.modules.backtest.presentation.schemas import BacktestRunRequest, Backte
 router = APIRouter(prefix="/backtest", tags=["backtest"])
 
 
-def _engine(request: Request) -> BacktestEngine:
-    return cast("BacktestEngine", request.app.state.container.resolve(BacktestEngine))
-
-
 @router.post("/run", response_model=BacktestRunResponse)
-async def run_backtest(request: Request, body: BacktestRunRequest) -> BacktestRunResponse:
-    engine = _engine(request)
+async def run_backtest(body: BacktestRunRequest, engine: Provide[BacktestEngine]) -> BacktestRunResponse:
     config = BacktestConfig(
         symbol=body.symbol,
         timeframe=body.timeframe,

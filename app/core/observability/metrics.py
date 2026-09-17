@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Protocol
 
+from magic_di import Connectable
+
 
 class Meter(Protocol):
     def counter(self, name: str, value: int = 1, labels: dict[str, str] | None = None) -> None: ...
@@ -11,7 +13,7 @@ class Meter(Protocol):
     def histogram(self, name: str, value: float, labels: dict[str, str] | None = None) -> None: ...
 
 
-class NoopMeter:
+class NoopMeter(Connectable):
     def counter(self, name: str, value: int = 1, labels: dict[str, str] | None = None) -> None:
         return None
 

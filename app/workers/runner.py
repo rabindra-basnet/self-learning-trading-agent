@@ -22,21 +22,21 @@ import signal
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import cast
+from typing import TypeVar
 
 from app.core.config.settings import get_settings
-from app.core.container import Container
 from app.core.logging.setup import get_logger
-from app.di import build_container, initialize, shutdown
+from app.di import configure_injector
 from app.modules.backtest.application.engine import BacktestEngine
 from app.modules.backtest.domain.entities import BacktestConfig
 from app.modules.marketdata.application.services import CandleQueryService
 from app.modules.marketdata.domain.entities import Symbol, Timeframe
 from app.modules.strategies.application.manager import StrategyManager
+from magic_di import DependencyInjector
 
 logger = get_logger("app.workers.runner")
 
-RoundStep = Callable[[Container, "LoopConfig"], Awaitable[float]]
+RoundStep = Callable[[DependencyInjector, "LoopConfig"], Awaitable[float]]
 
 
 @dataclass(frozen=True)
@@ -73,7 +73,7 @@ class ImproveUntilPlateau:
     def request_stop(self) -> None:
         self._stop.set()
 
-    async def run_forever(self, container: Container) -> int:
+    async def run_forever(self, container: DependencyInjector) -> int:
         """Run rounds; returns the number of rounds executed before stopping."""
         while not self._stop.is_set() and not self._max_rounds_reached():
             metric = await self._run_round(container)
@@ -89,7 +89,7 @@ class ImproveUntilPlateau:
             await self._wait_until_next()
         return self._round_n
 
-    async def _run_round(self, container: Container) -> float:
+    async def _run_round(self, container: DependencyInjector) -> float:
         self._round_n += 1
         logger.info("improve_round_start", round=self._round_n)
         try:
@@ -125,7 +125,14 @@ class ImproveUntilPlateau:
             await asyncio.wait_for(self._stop.wait(), timeout=self._config.round_interval_sec)
 
 
-async def default_step(container: Container, config: LoopConfig) -> float:
+T = TypeVar("T")
+
+
+def resolve[T](container: DependencyInjector, interface: type[T]) -> T:
+    return next(iter(container.get_dependencies_by_interface(interface)))
+
+
+async def default_step(container: DependencyInjector, config: LoopConfig) -> float:
     """Default round metric: champion-strategy win rate on a recent window.
 
     Returns 0.0 when there is no seeded candle data yet (the loop then plateaus
@@ -134,13 +141,13 @@ async def default_step(container: Container, config: LoopConfig) -> float:
     """
     now = datetime.now(UTC)
     start = now - timedelta(days=config.lookback_days)
-    query = cast(CandleQueryService, await container.aresolve(CandleQueryService))
+    query = resolve(container, CandleQueryService)
     candles = await query.range(Symbol.of(config.symbol), Timeframe(config.timeframe), start, now)
     if not candles:
         logger.info("improve_no_data", symbol=config.symbol)
         return 0.0
 
-    manager = cast(StrategyManager, await container.aresolve(StrategyManager))
+    manager = resolve(container, StrategyManager)
     champion = next(
         (m.strategy_id for m in await manager.list()),
         None,
@@ -149,7 +156,7 @@ async def default_step(container: Container, config: LoopConfig) -> float:
         logger.warning("improve_no_strategy_registered")
         return 0.0
 
-    engine = cast(BacktestEngine, await container.aresolve(BacktestEngine))
+    engine = resolve(container, BacktestEngine)
     result = await engine.run(
         BacktestConfig(
             symbol=config.symbol,
@@ -168,6 +175,9 @@ async def default_step(container: Container, config: LoopConfig) -> float:
 
 async def main() -> int:
     settings = get_settings()
+    from app.core.logging.setup import configure_logging
+
+    configure_logging(settings.app_env)
     config = LoopConfig(
         round_interval_sec=settings.self_improve_round_interval_sec,
         max_stale_rounds=settings.self_improve_max_stale_rounds,
@@ -179,15 +189,15 @@ async def main() -> int:
     loop = ImproveUntilPlateau(default_step, config)
     _install_signal_handlers(loop)
 
-    container = build_container(settings)
-    await initialize(container)
+    container = configure_injector()
+    await container.connect()
     logger.info("improve_loop_start", config=vars(config))
     try:
         rounds = await loop.run_forever(container)
         logger.info("improve_loop_stopped", rounds=rounds, best=loop.best)
         return 0
     finally:
-        await shutdown(container)
+        await container.disconnect()
 
 
 def _install_signal_handlers(loop: ImproveUntilPlateau) -> None:

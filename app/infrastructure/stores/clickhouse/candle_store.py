@@ -7,7 +7,7 @@ Runs against real ClickHouse in integration tests (testcontainers).
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from app.core.logging.setup import get_logger
@@ -15,6 +15,13 @@ from app.infrastructure.capability.database.clickhouse import ClickHouseConnecti
 from app.modules.marketdata.domain.entities import Candle, Symbol, Timeframe
 
 logger = get_logger("stores.clickhouse")
+
+
+def _as_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
 
 _DDL = """
 CREATE TABLE IF NOT EXISTS market_candles (
@@ -57,6 +64,12 @@ LIMIT %(limit)s
 
 
 class ClickHouseCandleStore:
+    async def __connect__(self) -> None:
+        pass
+
+    async def __disconnect__(self) -> None:
+        pass
+
     def __init__(self, connection: ClickHouseConnection) -> None:
         self._connection = connection
         self._initialized = False
@@ -76,7 +89,7 @@ class ClickHouseCandleStore:
             [
                 c.symbol.code,
                 c.timeframe.value,
-                c.opened_at.replace(tzinfo=None),
+                _as_utc(c.opened_at),
                 float(c.open),
                 float(c.high),
                 float(c.low),
@@ -95,7 +108,7 @@ class ClickHouseCandleStore:
         async with self._connection.client_scope() as client:
             result = await client.query(
                 _SELECT,
-                parameters=dict(symbol=symbol.code, timeframe=timeframe.value, start=start, end=end),
+                parameters=dict(symbol=symbol.code, timeframe=timeframe.value, start=_as_utc(start), end=_as_utc(end)),
             )
         return [self._row_to_candle(r) for r in result.result_rows]
 
@@ -113,7 +126,7 @@ class ClickHouseCandleStore:
         return Candle(
             symbol=Symbol.of(row[0]),
             timeframe=Timeframe(row[1]),
-            opened_at=row[2],
+            opened_at=_as_utc(row[2]),
             open=row[3],
             high=row[4],
             low=row[5],

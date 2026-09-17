@@ -18,6 +18,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    async def __connect__(self) -> None:
+        pass
+
+    async def __disconnect__(self) -> None:
+        pass
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

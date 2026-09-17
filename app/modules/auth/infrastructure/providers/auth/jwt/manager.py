@@ -6,22 +6,28 @@ boundary (docs/INTEGRATION-ARCHITECTURE.md §5/§9).
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import jwt
 
+from app.core.config.settings import Settings
 from app.core.exceptions.taxonomy import AuthenticationError, ConfigurationError
 from app.modules.auth.domain.entities import Role, TokenClaims, TokenPair, User
 
 
-@dataclass(frozen=True, slots=True)
 class JwtTokenManager:
-    secret: str
-    access_ttl_min: int = 15
-    refresh_ttl_days: int = 7
-    algorithm: str = "HS256"
+    async def __connect__(self) -> None:
+        pass
+
+    async def __disconnect__(self) -> None:
+        pass
+
+    def __init__(self, settings: Settings) -> None:
+        self.secret = settings.auth_jwt_secret.get_secret_value()
+        self.access_ttl_min = settings.auth_access_ttl_min
+        self.refresh_ttl_days = settings.auth_refresh_ttl_days
+        self.algorithm = settings.auth_jwt_alg
 
     def __post_init__(self) -> None:
         if len(self.secret) < 16:

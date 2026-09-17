@@ -5,7 +5,11 @@ from __future__ import annotations
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
+from app.core.config.settings import Settings
 from app.core.logging.setup import get_logger
+from app.infrastructure.capability.database.dsn import normalize_asyncpg_dsn
+from magic_di import Connectable
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -16,19 +20,26 @@ from sqlalchemy.ext.asyncio import (
 logger = get_logger("capability.postgres")
 
 
-class PostgresConnection:
-    def __init__(self, dsn: str, *, pool_size: int = 5, max_overflow: int = 10) -> None:
-        self._dsn = dsn
+class PostgresConnection(Connectable):
+    def __init__(self, settings: Settings) -> None:
+        self._dsn = settings.database_url
+        self._pool_size = 5
+        self._max_overflow = 10
         self._engine: AsyncEngine | None = None
         self._session_factory: async_sessionmaker[AsyncSession] | None = None
 
+    async def __disconnect__(self) -> None:
+        await self.dispose()
+
     def _ensure_engine(self) -> AsyncEngine:
         if self._engine is None:
+            dsn, connect_args = normalize_asyncpg_dsn(self._dsn)
             self._engine = create_async_engine(
-                self._dsn,
+                dsn,
                 pool_pre_ping=True,
-                pool_size=5,
-                max_overflow=10,
+                pool_size=self._pool_size,
+                max_overflow=self._max_overflow,
+                connect_args=connect_args,
                 echo=False,
             )
             self._session_factory = async_sessionmaker(bind=self._engine, class_=AsyncSession, expire_on_commit=False)
@@ -54,10 +65,10 @@ class PostgresConnection:
         engine = self._ensure_engine()
         try:
             async with engine.connect() as conn:
-                await conn.execute(__import__("sqlalchemy").text("SELECT 1"))
+                await conn.execute(text("SELECT 1"))
             return True
-        except Exception:
-            logger.warning("postgres_ping_failed")
+        except Exception as exc:
+            logger.warning("postgres_ping_failed", error_type=type(exc).__name__, error=str(exc))
             return False
 
     async def dispose(self) -> None:

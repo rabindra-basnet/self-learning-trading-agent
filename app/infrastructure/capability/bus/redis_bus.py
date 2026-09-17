@@ -14,15 +14,16 @@ from typing import Any, cast
 
 from app.core.logging.setup import get_logger
 from app.core.messaging.bus import DomainEvent, EventHandler
-from redis.asyncio import Redis
+from app.infrastructure.capability.redis import RedisConnection
+from magic_di import Connectable
 
 logger = get_logger("capability.bus.redis")
 
 
-class RedisEventBus:
-    def __init__(self, redis: Redis, stream: str = "domain_events") -> None:
-        self._redis = redis
-        self._stream = stream
+class RedisEventBus(Connectable):
+    def __init__(self, redis_conn: RedisConnection) -> None:
+        self._redis = redis_conn.client
+        self._stream = "domain_events"
         self._handlers: dict[type[DomainEvent], list[EventHandler]] = {}
 
     async def publish(self, *events: DomainEvent) -> None:
@@ -77,7 +78,3 @@ class RedisEventBus:
             if t.__name__ == event_type_name:
                 return t
         return None
-
-    async def close(self) -> None:
-        with contextlib.suppress(Exception):
-            await self._redis.aclose()

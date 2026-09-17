@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Annotated, cast
-
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, HTTPException
+from magic_di.fastapi import Provide
 
 from app.core.exceptions.taxonomy import http_status_for
 from app.modules.strategies.application.manager import StrategyManager
@@ -13,13 +12,9 @@ from app.modules.strategies.presentation.schemas import EvaluateResponse, Strate
 router = APIRouter(prefix="/strategies", tags=["strategies"])
 
 
-def _get_manager(request: Request) -> StrategyManager:
-    return cast("StrategyManager", request.app.state.container.resolve(StrategyManager))
-
-
 @router.get("", response_model=list[StrategyMeta])
 async def list_strategies(
-    manager: Annotated[StrategyManager, Depends(_get_manager)],
+    manager: Provide[StrategyManager],
 ) -> list[StrategyMeta]:
     return await manager.list()
 
@@ -27,7 +22,7 @@ async def list_strategies(
 @router.post("/{strategy_id}/evaluate", response_model=EvaluateResponse)
 async def evaluate(
     strategy_id: str,
-    manager: Annotated[StrategyManager, Depends(_get_manager)],
+    manager: Provide[StrategyManager],
     symbol: str = "BTC-USDT",
     timeframe: str = "1h",
 ) -> EvaluateResponse:

@@ -6,6 +6,7 @@ from collections.abc import Awaitable
 from typing import Any, Protocol
 
 from app.core.logging.setup import get_logger
+from app.infrastructure.capability.redis import RedisConnection
 from app.modules.risk.domain.entities import KillSwitchState, RiskProfile
 
 logger = get_logger("stores.risk_redis")
@@ -22,8 +23,14 @@ _KILL_SWITCH_KEY = "risk:kill_switch"
 
 
 class RedisRiskProfileStore:
-    def __init__(self, client: RedisClient) -> None:
-        self._client = client
+    async def __connect__(self) -> None:
+        pass
+
+    async def __disconnect__(self) -> None:
+        pass
+
+    def __init__(self, redis: RedisConnection) -> None:
+        self._client = redis.client
 
     async def get_profile(self) -> RiskProfile:
         raw = await self._client.get(_PROFILE_KEY)

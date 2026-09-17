@@ -8,27 +8,28 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 import clickhouse_connect
+from app.core.config.settings import Settings
 from app.core.logging.setup import get_logger
 from clickhouse_connect.driver.asyncclient import AsyncClient
+from magic_di import Connectable
 
 logger = get_logger("capability.clickhouse")
 
 
-class ClickHouseConnection:
-    def __init__(
-        self,
-        host: str,
-        port: int = 8123,
-        user: str = "default",
-        password: str = "",
-        database: str = "trading",
-        *,
-        secure: bool = False,
-    ) -> None:
+class ClickHouseConnection(Connectable):
+    def __init__(self, settings: Settings) -> None:
         self._cfg: dict[str, Any] = dict(
-            host=host, port=port, username=user, password=password, database=database, secure=secure
+            host=settings.clickhouse_host,
+            port=settings.clickhouse_port,
+            username=settings.clickhouse_user,
+            password=settings.clickhouse_password,
+            database=settings.clickhouse_database,
+            secure=settings.clickhouse_secure,
         )
         self._client: AsyncClient | None = None
+
+    async def __disconnect__(self) -> None:
+        await self.dispose()
 
     async def _get_client(self) -> AsyncClient:
         if self._client is None:
@@ -45,8 +46,8 @@ class ClickHouseConnection:
             client = await self._get_client()
             await client.ping()
             return True
-        except Exception:
-            logger.warning("clickhouse_ping_failed")
+        except Exception as exc:
+            logger.warning("clickhouse_ping_failed", error_type=type(exc).__name__, error=str(exc))
             return False
 
     async def dispose(self) -> None:

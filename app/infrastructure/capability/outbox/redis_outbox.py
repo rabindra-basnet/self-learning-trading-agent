@@ -9,16 +9,17 @@ from __future__ import annotations
 import json
 
 from app.core.messaging.bus import DomainEvent
-from redis.asyncio import Redis
+from app.infrastructure.capability.redis import RedisConnection
+from magic_di import Connectable
 
 _STREAM_PREFIX = "outbox:event:"
 _PENDING_KEY = "outbox:pending"
 _DONE_KEY = "outbox:dispatched"
 
 
-class RedisOutbox:
-    def __init__(self, redis: Redis) -> None:
-        self._redis = redis
+class RedisOutbox(Connectable):
+    def __init__(self, redis_conn: RedisConnection) -> None:
+        self._redis = redis_conn.client
 
     async def append(self, event: DomainEvent) -> None:
         key = f"{_STREAM_PREFIX}{event.event_id}"

@@ -305,4 +305,5 @@ forbidden_modules = [
   "uvicorn",
   "pydantic_settings",
   "structlog",
+  "magic_di",
 ]

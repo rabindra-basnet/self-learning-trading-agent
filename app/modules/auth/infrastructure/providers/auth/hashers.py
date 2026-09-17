@@ -11,6 +11,12 @@ _SALT_BYTES = 16
 
 
 class Pbkdf2PasswordHasher:
+    async def __connect__(self) -> None:
+        pass
+
+    async def __disconnect__(self) -> None:
+        pass
+
     """PasswordHasher port implemented with `hashlib.pbkdf2_hmac`."""
 
     def hash(self, password: str) -> str:
