@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from app.core.common.result import Err, Result
+from app.core.common.result import Result
 from app.core.container import Container
-from app.core.exceptions.taxonomy import http_status_for
+from app.core.exceptions.taxonomy import DomainError, http_status_for
 from app.core.logging.setup import get_logger
+from app.modules.auth.application.services import ApiKeyService, AuthService
+from app.modules.auth.domain.entities import Role, TokenClaims, User
+from app.modules.auth.domain.ports import UserRepository
 from app.modules.auth.presentation.schemas import (
     ApiKeyRequest,
     ApiKeyResponse,
@@ -19,16 +22,13 @@ from app.modules.auth.presentation.schemas import (
     RegisterRequest,
     TokenResponse,
 )
-from app.modules.auth.application.services import ApiKeyService, AuthService
-from app.modules.auth.domain.entities import Role, TokenClaims, User
-from app.modules.auth.domain.ports import UserRepository
 
 logger = get_logger("auth.presentation")
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 def _container(request: Request) -> Container:
-    return request.app.state.container
+    return cast("Container", request.app.state.container)
 
 
 def _auth_service(request: Request) -> AuthService:
@@ -39,11 +39,12 @@ def _api_key_service(request: Request) -> ApiKeyService:
     return _container(request).resolve(ApiKeyService)
 
 
-def _or_http(result: Result, status_override: int | None = None) -> None:
-    if isinstance(result, Err):
+def _or_http(result: Result[object, DomainError], status_override: int | None = None) -> None:
+    if result.is_err:
+        error = result.error_value()
         raise HTTPException(
-            status_code=status_override or http_status_for(result.error_value),
-            detail=result.error_value.message,
+            status_code=status_override or http_status_for(error),
+            detail=error.message,
         )
 
 
@@ -53,13 +54,13 @@ async def get_current_claims(request: Request) -> TokenClaims:
     if scheme.lower() != "bearer" or not token:
         raise HTTPException(status_code=401, detail="missing_token")
     result = await _auth_service(request).verify_access(token)
-    if isinstance(result, Err):
-        raise HTTPException(status_code=401, detail=result.error_value.message)
+    if result.is_err:
+        raise HTTPException(status_code=401, detail=result.error_value().message)
     return result.ok_value()
 
 
 async def get_current_user(request: Request, claims: Annotated[TokenClaims, Depends(get_current_claims)]) -> User:
-    users: UserRepository = _container(request).resolve(UserRepository)
+    users: UserRepository = _container(request).resolve(UserRepository)  # type: ignore[type-abstract]
     user = await users.get_by_id(claims.subject)
     if user is None or user.disabled:
         raise HTTPException(status_code=401, detail="user_disabled")

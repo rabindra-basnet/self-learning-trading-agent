@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -33,7 +34,7 @@ def to_candle(kline: RawKline, symbol: Symbol, timeframe: Timeframe, exchange: s
         raise MalformedDataError(f"binance kline normalization failed: {exc}", provider="binance", cause=exc) from exc
 
 
-def to_ticker(raw: dict, symbol: Symbol, exchange: str) -> Ticker:
+def to_ticker(raw: dict[str, Any], symbol: Symbol, exchange: str) -> Ticker:
     try:
         return Ticker(
             symbol=symbol,

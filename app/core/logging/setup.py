@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from contextvars import ContextVar
+from typing import cast
 
 import structlog
 
@@ -70,4 +71,4 @@ def _redact_secrets(
 
 
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
-    return structlog.get_logger(name)
+    return cast("structlog.stdlib.BoundLogger", structlog.get_logger(name))

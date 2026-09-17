@@ -1,6 +1,6 @@
-from app.modules.auth.infrastructure.stores.in_memory_repos import (
-    InMemoryApiKeyRepository,
-    InMemoryUserRepository,
+from app.modules.auth.infrastructure.stores.postgres_repos import (
+    PostgresApiKeyRepository,
+    PostgresUserRepository,
 )
 
-__all__ = ["InMemoryApiKeyRepository", "InMemoryUserRepository"]
+__all__ = ["PostgresApiKeyRepository", "PostgresUserRepository"]

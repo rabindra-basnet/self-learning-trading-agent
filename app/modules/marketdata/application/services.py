@@ -5,13 +5,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
+from app.core.common.clock import Clock
 from app.core.common.result import Err, Ok, Result
 from app.core.exceptions.taxonomy import DomainError, MalformedDataError
 from app.core.logging.setup import get_logger
 from app.core.messaging.bus import DomainEvent, EventBus
 from app.modules.marketdata.domain.entities import Candle, Symbol, Timeframe
 from app.modules.marketdata.domain.events import CandleReceived
-from app.modules.marketdata.domain.ports import CandleStore, MarketDataSource, TimeSource
+from app.modules.marketdata.domain.ports import CandleStore, MarketDataSource
 
 logger = get_logger("marketdata.service")
 
@@ -35,7 +36,7 @@ class CandleIngestService:
         market_data: MarketDataSource,
         store: CandleStore,
         bus: EventBus,
-        clock: TimeSource,
+        clock: Clock,
     ) -> None:
         self._market_data = market_data
         self._store = store

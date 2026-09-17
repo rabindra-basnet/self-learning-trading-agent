@@ -55,7 +55,7 @@ def _to_float(value: object) -> float | None:
     try:
         import math
 
-        result = float(value)
+        result = float(value)  # type: ignore[arg-type]
         return None if math.isnan(result) or math.isinf(result) else result
     except (TypeError, ValueError):
         return None

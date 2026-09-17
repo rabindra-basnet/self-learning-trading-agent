@@ -15,7 +15,7 @@ from typing import TypeVar
 from app.core.exceptions.taxonomy import DomainError, ProviderUnavailableError
 
 T = TypeVar("T")
-Fn = Callable[[], Awaitable[T]]
+Call = Callable[[], Awaitable[T]]
 
 
 @dataclass(slots=True)
@@ -26,7 +26,7 @@ class RetryPolicy:
     jitter: bool = True
     _attempts: int = field(default=0, init=False)
 
-    async def run(self, fn: Fn) -> T:
+    async def run(self, fn: Call[T]) -> T:
         self._attempts = 0
         while True:
             self._attempts += 1
@@ -67,7 +67,7 @@ class CircuitBreaker:
     _failures: int = field(default=0, init=False)
     _open: bool = field(default=False, init=False)
 
-    async def run(self, fn: Fn) -> T:
+    async def run(self, fn: Call[T]) -> T:
         if self._open:
             raise ProviderUnavailableError("circuit_open", provider="tooling")
         try:
@@ -94,9 +94,14 @@ class Policy:
     limiter: RateLimiter | None = None
     timeout_sec: float | None = None
 
-    async def run(self, fn: Fn) -> T:
+    async def run(self, fn: Call[T]) -> T:
+        breaker = self.breaker
+        retry = self.retry
+
         async def _guarded() -> T:
-            return await asyncio.wait_for(fn(), timeout=self.timeout_sec) if self.timeout_sec else await fn()
+            if self.timeout_sec:
+                return await asyncio.wait_for(fn(), timeout=self.timeout_sec)
+            return await fn()
 
         async def _limited() -> T:
             if self.limiter:
@@ -104,15 +109,10 @@ class Policy:
             return await _guarded()
 
         async def _core() -> T:
-            fnc: Fn = _limited
-            if self.breaker:
+            if breaker is None:
+                return await _limited()
+            return await breaker.run(_limited)
 
-                async def _with_breaker() -> T:
-                    return await self.breaker.run(fnc)  # type: ignore[arg-type]
-
-                fnc = _with_breaker  # type: ignore[assignment]
-            if self.retry:
-                return await self.retry.run(fnc)
-            return await fnc()
-
-        return await _core()
+        if retry is None:
+            return await _core()
+        return await retry.run(_core)

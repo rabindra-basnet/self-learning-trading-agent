@@ -12,7 +12,7 @@ dependencies = [
   "sqlalchemy[asyncio]>=2.0.36",
   "asyncpg>=0.30",
   "alembic>=1.14",
-  "clickhouse-connect>=0.8",
+  "clickhouse-connect[async]>=0.8",
   "redis>=5.2",
   "ccxt>=4.4",
   "pandas>=2.2",
@@ -20,7 +20,7 @@ dependencies = [
   "httpx>=0.28",
   "PyJWT>=2.10",
   "python-dotenv>=1.0",
-  "di[fastapi]>=0.79.2",
+  "magic-di[fastapi]>=0.3.1",
 ]
 
 [project.optional-dependencies]
@@ -35,9 +35,7 @@ dev = [
   "mypy>=1.13",
   "ruff>=0.8",
   "import-linter>=2.0",
-  "types-redis>=4.6",
   "types-PyYAML>=6.0",
-  "types-PyJWT>=1.7.1,<2.0",
 ]
 
 [build-system]
@@ -79,6 +77,8 @@ module = [
   "ccxt.*",
   "clickhouse_connect.*",
   "structlog.*",
+  "magic_di.*",
+  "pandas.*",
   "vcrpy.*",
   "testcontainers.*",
   "pytest_mock.*",
@@ -94,90 +94,188 @@ include_external_packages = true
 [[tool.importlinter.contracts]]
 name = "Core imports nothing from app"
 type = "forbidden"
+allow_indirect_imports = true
 source_modules = ["app.core"]
 forbidden_modules = ["app.modules", "app.infrastructure", "app.api", "app.workers"]
 
 [[tool.importlinter.contracts]]
 name = "auth stays internal to its slice"
 type = "forbidden"
+allow_indirect_imports = true
 source_modules = ["app.modules.auth.domain", "app.modules.auth.application", "app.modules.auth.presentation"]
 forbidden_modules = [
-  "app.modules.marketdata",
-  "app.modules.signals",
-  "app.modules.strategies",
-  "app.modules.backtest",
-  "app.modules.risk",
+  "app.modules.marketdata.domain",
+  "app.modules.marketdata.application",
+  "app.modules.marketdata.presentation",
+  "app.modules.marketdata.infrastructure",
+  "app.modules.signals.domain",
+  "app.modules.signals.application",
+  "app.modules.signals.presentation",
+  "app.modules.signals.infrastructure",
+  "app.modules.strategies.domain",
+  "app.modules.strategies.application",
+  "app.modules.strategies.presentation",
+  "app.modules.strategies.infrastructure",
+  "app.modules.backtest.domain",
+  "app.modules.backtest.application",
+  "app.modules.backtest.presentation",
+  "app.modules.backtest.infrastructure",
+  "app.modules.risk.domain",
+  "app.modules.risk.application",
+  "app.modules.risk.presentation",
+  "app.modules.risk.infrastructure",
   "app.infrastructure",
 ]
 
 [[tool.importlinter.contracts]]
 name = "marketdata stays internal to its slice"
 type = "forbidden"
+allow_indirect_imports = true
 source_modules = ["app.modules.marketdata.domain", "app.modules.marketdata.application", "app.modules.marketdata.presentation"]
 forbidden_modules = [
-  "app.modules.auth",
-  "app.modules.signals",
-  "app.modules.strategies",
-  "app.modules.backtest",
-  "app.modules.risk",
+  "app.modules.auth.domain",
+  "app.modules.auth.application",
+  "app.modules.auth.presentation",
+  "app.modules.auth.infrastructure",
+  "app.modules.signals.domain",
+  "app.modules.signals.application",
+  "app.modules.signals.presentation",
+  "app.modules.signals.infrastructure",
+  "app.modules.strategies.domain",
+  "app.modules.strategies.application",
+  "app.modules.strategies.presentation",
+  "app.modules.strategies.infrastructure",
+  "app.modules.backtest.domain",
+  "app.modules.backtest.application",
+  "app.modules.backtest.presentation",
+  "app.modules.backtest.infrastructure",
+  "app.modules.risk.domain",
+  "app.modules.risk.application",
+  "app.modules.risk.presentation",
+  "app.modules.risk.infrastructure",
   "app.infrastructure",
 ]
 
 [[tool.importlinter.contracts]]
 name = "signals stays internal to its slice"
 type = "forbidden"
+allow_indirect_imports = true
 source_modules = ["app.modules.signals.domain", "app.modules.signals.application", "app.modules.signals.presentation"]
 forbidden_modules = [
-  "app.modules.auth",
-  "app.modules.marketdata",
-  "app.modules.strategies",
-  "app.modules.backtest",
-  "app.modules.risk",
+  "app.modules.auth.domain",
+  "app.modules.auth.application",
+  "app.modules.auth.presentation",
+  "app.modules.auth.infrastructure",
+  "app.modules.marketdata.domain",
+  "app.modules.marketdata.application",
+  "app.modules.marketdata.presentation",
+  "app.modules.marketdata.infrastructure",
+  "app.modules.strategies.domain",
+  "app.modules.strategies.application",
+  "app.modules.strategies.presentation",
+  "app.modules.strategies.infrastructure",
+  "app.modules.backtest.domain",
+  "app.modules.backtest.application",
+  "app.modules.backtest.presentation",
+  "app.modules.backtest.infrastructure",
+  "app.modules.risk.domain",
+  "app.modules.risk.application",
+  "app.modules.risk.presentation",
+  "app.modules.risk.infrastructure",
   "app.infrastructure",
 ]
 
 [[tool.importlinter.contracts]]
 name = "strategies stays internal to its slice"
 type = "forbidden"
+allow_indirect_imports = true
 source_modules = ["app.modules.strategies.domain", "app.modules.strategies.application", "app.modules.strategies.presentation"]
 forbidden_modules = [
-  "app.modules.auth",
-  "app.modules.marketdata",
-  "app.modules.signals",
-  "app.modules.backtest",
-  "app.modules.risk",
+  "app.modules.auth.domain",
+  "app.modules.auth.application",
+  "app.modules.auth.presentation",
+  "app.modules.auth.infrastructure",
+  "app.modules.marketdata.domain",
+  "app.modules.marketdata.application",
+  "app.modules.marketdata.presentation",
+  "app.modules.marketdata.infrastructure",
+  "app.modules.signals.domain",
+  "app.modules.signals.application",
+  "app.modules.signals.presentation",
+  "app.modules.signals.infrastructure",
+  "app.modules.backtest.domain",
+  "app.modules.backtest.application",
+  "app.modules.backtest.presentation",
+  "app.modules.backtest.infrastructure",
+  "app.modules.risk.domain",
+  "app.modules.risk.application",
+  "app.modules.risk.presentation",
+  "app.modules.risk.infrastructure",
   "app.infrastructure",
 ]
 
 [[tool.importlinter.contracts]]
 name = "backtest stays internal to its slice"
 type = "forbidden"
+allow_indirect_imports = true
 source_modules = ["app.modules.backtest.domain", "app.modules.backtest.application", "app.modules.backtest.presentation"]
 forbidden_modules = [
-  "app.modules.auth",
-  "app.modules.marketdata",
-  "app.modules.signals",
-  "app.modules.strategies",
-  "app.modules.risk",
+  "app.modules.auth.domain",
+  "app.modules.auth.application",
+  "app.modules.auth.presentation",
+  "app.modules.auth.infrastructure",
+  "app.modules.marketdata.domain",
+  "app.modules.marketdata.application",
+  "app.modules.marketdata.presentation",
+  "app.modules.marketdata.infrastructure",
+  "app.modules.signals.domain",
+  "app.modules.signals.application",
+  "app.modules.signals.presentation",
+  "app.modules.signals.infrastructure",
+  "app.modules.strategies.domain",
+  "app.modules.strategies.application",
+  "app.modules.strategies.presentation",
+  "app.modules.strategies.infrastructure",
+  "app.modules.risk.domain",
+  "app.modules.risk.application",
+  "app.modules.risk.presentation",
+  "app.modules.risk.infrastructure",
   "app.infrastructure",
 ]
 
 [[tool.importlinter.contracts]]
 name = "risk stays internal to its slice"
 type = "forbidden"
+allow_indirect_imports = true
 source_modules = ["app.modules.risk.domain", "app.modules.risk.application", "app.modules.risk.presentation"]
 forbidden_modules = [
-  "app.modules.auth",
-  "app.modules.marketdata",
-  "app.modules.signals",
-  "app.modules.strategies",
-  "app.modules.backtest",
+  "app.modules.auth.domain",
+  "app.modules.auth.application",
+  "app.modules.auth.presentation",
+  "app.modules.auth.infrastructure",
+  "app.modules.marketdata.domain",
+  "app.modules.marketdata.application",
+  "app.modules.marketdata.presentation",
+  "app.modules.marketdata.infrastructure",
+  "app.modules.signals.domain",
+  "app.modules.signals.application",
+  "app.modules.signals.presentation",
+  "app.modules.signals.infrastructure",
+  "app.modules.strategies.domain",
+  "app.modules.strategies.application",
+  "app.modules.strategies.presentation",
+  "app.modules.strategies.infrastructure",
+  "app.modules.backtest.domain",
+  "app.modules.backtest.application",
+  "app.modules.backtest.presentation",
+  "app.modules.backtest.infrastructure",
   "app.infrastructure",
 ]
 
 [[tool.importlinter.contracts]]
 name = "Domain and application layers are provider-free"
 type = "forbidden"
+allow_indirect_imports = true
 source_modules = [
   "app.modules.auth.domain",
   "app.modules.auth.application",

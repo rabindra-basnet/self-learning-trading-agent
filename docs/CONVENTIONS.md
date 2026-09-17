@@ -41,3 +41,22 @@ Status: DRAFT . Enforced by tooling + review
 ## 6. Definition of Done
 - Green: lint, types, unit, **integration**, **E2E smoke**, contract, SAST/SCA, secrets scan.
 - Mypy/tsc-clean; coverage gate; docs updated if behaviour changed (OpenAPI regenerated); conventional commit; ADR conformant.
+
+## 7. Code Craft -- Seven Patterns
+
+Judgment patterns, not framework tricks. The theme underneath all of them: **reduce surprise**.
+Complexity has to live somewhere -- put it in names, boundaries, types, errors, and small diffs,
+not in the next reader's head.
+
+| # | Pattern | Rule here |
+|---|---|---|
+| 1 | Return early | Guard clauses over nested mazes. Validate/authorize first, then the happy path reads top-to-bottom. No `if` pyramids in handlers, services, or mappers. |
+| 2 | Name the business meaning | `subscription.is_billable`, not `data.status`; `candles_since_last_sync`, not `list2`. Names come from the domain vocabulary in `domain/entities.py`. Long is fine when the rule is specific; loop indices stay `i`. |
+| 3 | Boundary around external chaos | Vendor payloads die at `mapping.py`. No raw SDK/DTO shape, DB row, or framework request object crosses into `application/`. Swapping a vendor must fail in one adapter test, not everywhere. |
+| 4 | Invalid states need not exist | Model real states (pending/captured/failed, draft/saved) instead of all-optional bags; enums over strings, Pydantic v2 validators, `Result[T, E]` over sentinel `None`. Avoid `| None` fields that merely silence mypy. |
+| 5 | Separate decisions from actions | Pure functions decide (eligibility, risk, sizing); use-cases execute. A decision must be testable without mocking providers, DB, or the bus -- this is what keeps the fail-closed risk gate honest. |
+| 6 | Errors useful to the next person | Typed taxonomy + `error_code` over free text; `correlation_id` and safe context in logs; no secrets; never branch on error message strings. |
+| 7 | Optimize for the diff, not the demo | One logical change per PR/commit; never mix refactor with behaviour change; each round rollbackable by a single revert. A giant "also cleaned up X" diff is a defect. |
+
+Anti-patterns this section replaces: `isinstance(result, Err)`, bare `except`, `data`/`result`/`payload`
+names, `BaseXxxAdapter` hierarchies, and "works on my machine" merges.

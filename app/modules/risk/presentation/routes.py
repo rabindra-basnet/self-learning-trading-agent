@@ -3,22 +3,23 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import cast
 
 from fastapi import APIRouter, Request
 
+from app.modules.risk.application.services import RiskService
+from app.modules.risk.domain.entities import KillSwitchState
 from app.modules.risk.presentation.schemas import (
     KillSwitchRequest,
     RiskDecisionResponse,
     RiskProfileResponse,
 )
-from app.modules.risk.application.services import RiskService
-from app.modules.risk.domain.entities import KillSwitchState
 
 router = APIRouter(prefix="/risk", tags=["risk"])
 
 
 def _service(request: Request) -> RiskService:
-    return request.app.state.container.resolve(RiskService)
+    return cast("RiskService", request.app.state.container.resolve(RiskService))
 
 
 @router.get("/profile", response_model=RiskProfileResponse)
@@ -33,7 +34,9 @@ async def set_profile(request: Request, profile: RiskProfileResponse) -> RiskPro
 
 
 @router.post("/check")
-async def check_order(request: Request, symbol: str = "BTC/USDT", notional: str = "0", equity: str = "10000"):
+async def check_order(
+    request: Request, symbol: str = "BTC/USDT", notional: str = "0", equity: str = "10000"
+) -> RiskDecisionResponse:
     decision = await _service(request).check_order(
         symbol=symbol,
         notional=Decimal(notional),

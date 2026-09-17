@@ -24,10 +24,10 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import cast
 
-from app.di import build_container, initialize, shutdown
 from app.core.config.settings import get_settings
 from app.core.container import Container
 from app.core.logging.setup import get_logger
+from app.di import build_container, initialize, shutdown
 from app.modules.backtest.application.engine import BacktestEngine
 from app.modules.backtest.domain.entities import BacktestConfig
 from app.modules.marketdata.application.services import CandleQueryService
@@ -135,16 +135,14 @@ async def default_step(container: Container, config: LoopConfig) -> float:
     now = datetime.now(UTC)
     start = now - timedelta(days=config.lookback_days)
     query = cast(CandleQueryService, await container.aresolve(CandleQueryService))
-    candles = await query.range(
-        Symbol.of(config.symbol), Timeframe(config.timeframe), start, now
-    )
+    candles = await query.range(Symbol.of(config.symbol), Timeframe(config.timeframe), start, now)
     if not candles:
         logger.info("improve_no_data", symbol=config.symbol)
         return 0.0
 
     manager = cast(StrategyManager, await container.aresolve(StrategyManager))
     champion = next(
-        (m.strategy_id for m in manager.list()),
+        (m.strategy_id for m in await manager.list()),
         None,
     )
     if champion is None:
@@ -162,7 +160,7 @@ async def default_step(container: Container, config: LoopConfig) -> float:
         )
     )
     if result.is_err:
-        logger.warning("improve_backtest_err", error=result.error_value)
+        logger.warning("improve_backtest_err", error=result.error_value().message)
         return 0.0
     score = result.ok_value().win_rate_pct
     return float(score)
@@ -171,12 +169,12 @@ async def default_step(container: Container, config: LoopConfig) -> float:
 async def main() -> int:
     settings = get_settings()
     config = LoopConfig(
-        round_interval_sec=settings.self_improve.round_interval_sec,
-        max_stale_rounds=settings.self_improve.max_stale_rounds,
-        max_rounds=settings.self_improve.max_rounds,
-        symbol=settings.self_improve.symbol,
-        timeframe=settings.self_improve.timeframe,
-        lookback_days=settings.self_improve.lookback_days,
+        round_interval_sec=settings.self_improve_round_interval_sec,
+        max_stale_rounds=settings.self_improve_max_stale_rounds,
+        max_rounds=settings.self_improve_max_rounds,
+        symbol=settings.self_improve_symbol,
+        timeframe=settings.self_improve_timeframe,
+        lookback_days=settings.self_improve_lookback_days,
     )
     loop = ImproveUntilPlateau(default_step, config)
     _install_signal_handlers(loop)

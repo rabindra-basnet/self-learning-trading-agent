@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from app.core.messaging.bus import EventBus
 from app.modules.marketdata.contracts import Candle
+from app.modules.signals.domain.entities import FeatureVector
 from app.modules.signals.domain.events import FeatureComputed
 from app.modules.signals.domain.ports import FeatureComputer
 
@@ -13,7 +14,7 @@ class FeatureService:
         self._computer = computer
         self._bus = bus
 
-    async def compute(self, candles: list[Candle], features: list[str] | None = None) -> list:
+    async def compute(self, candles: list[Candle], features: list[str] | None = None) -> list[FeatureVector]:
         vectors = self._computer.compute(candles, features)
         if vectors:
             first = vectors[0]

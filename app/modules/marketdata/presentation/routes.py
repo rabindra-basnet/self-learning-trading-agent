@@ -3,32 +3,33 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import cast
 
 from fastapi import APIRouter, HTTPException, Request
 
-from app.core.common.result import Err
 from app.core.exceptions.taxonomy import http_status_for
-from app.modules.marketdata.presentation.schemas import CandleSummary, SyncRequest
 from app.modules.marketdata.application.services import CandleIngestService, CandleQueryService
-from app.modules.marketdata.domain.entities import Symbol, Timeframe
+from app.modules.marketdata.domain.entities import Candle, Symbol, Timeframe
+from app.modules.marketdata.presentation.schemas import CandleSummary, SyncRequest
 
 router = APIRouter(prefix="/market-data", tags=["market-data"])
 
 
 def _service(request: Request) -> CandleIngestService:
-    return request.app.state.container.resolve(CandleIngestService)
+    return cast("CandleIngestService", request.app.state.container.resolve(CandleIngestService))
 
 
 def _query(request: Request) -> CandleQueryService:
-    return request.app.state.container.resolve(CandleQueryService)
+    return cast("CandleQueryService", request.app.state.container.resolve(CandleQueryService))
 
 
 @router.post("/sync", response_model=CandleSummary, status_code=201)
 async def sync(body: SyncRequest, request: Request) -> CandleSummary:
     tf = Timeframe(body.timeframe)
     result = await _service(request).sync(symbol=Symbol.of(body.symbol), timeframe=tf, limit=body.limit)
-    if isinstance(result, Err):
-        raise HTTPException(status_code=http_status_for(result.error_value), detail=result.error_value.message)
+    if result.is_err:
+        error = result.error_value()
+        raise HTTPException(status_code=http_status_for(error), detail=error.message)
     s = result.ok_value()
     return CandleSummary(symbol=s.symbol.code, timeframe=tf.value, appended=s.appended, fetched=s.fetched)
 
@@ -41,7 +42,7 @@ async def get_candles(
     start: str | None = None,
     end: str | None = None,
     limit: int = 100,
-):
+) -> list[Candle]:
     tf = Timeframe(timeframe)
     sym = Symbol.of(symbol)
     s = datetime.fromisoformat(start).replace(tzinfo=UTC) if start else datetime.now(UTC) - timedelta(hours=24)

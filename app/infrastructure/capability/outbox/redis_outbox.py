@@ -55,7 +55,7 @@ class RedisOutbox:
                 pass
         return events
 
-    def _resolve_type(self, type_name: str):
+    def _resolve_type(self, type_name: str) -> type[DomainEvent] | None:
         from app.core.messaging.bus import DomainEvent as _DE
 
         for cls in _DE.__subclasses__():

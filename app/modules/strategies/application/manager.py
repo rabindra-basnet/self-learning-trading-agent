@@ -2,24 +2,37 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from typing import Any
 
-from app.modules.strategies.presentation.schemas import StrategyMeta
-from app.modules.strategies.domain.ports import SignalDirection, Strategy
+from app.core.common.result import Err, Ok, Result
+from app.core.exceptions.taxonomy import DomainError, NotFoundError
+from app.core.messaging.bus import EventBus
+from app.modules.strategies.domain.entities import StrategyMeta, StrategyRegistered
+from app.modules.strategies.domain.ports import SignalDirection, Strategy, StrategyStore
 
 
 class StrategyManager:
-    """Owns the built-in strategy library."""
+    """Owns the strategy catalog behind a store port."""
 
-    def __init__(self, strategies: Mapping[str, Strategy]) -> None:
-        self._strategies = dict(strategies)
+    def __init__(self, store: StrategyStore, bus: EventBus) -> None:
+        self._store = store
+        self._bus = bus
 
-    def list(self) -> list[StrategyMeta]:
-        return [
-            StrategyMeta(strategy_id=s.strategy_id, name=s.params.name, params={})
-            for s in self._strategies.values()
-        ]
+    async def register(self, strategy: Strategy) -> None:
+        await self._store.put(strategy)
+        await self._bus.publish(StrategyRegistered(strategy_id=strategy.strategy_id, name=strategy.params.name))
 
-    def evaluate(self, strategy_id: str, candles: Sequence[Any], features: Sequence[Any]) -> SignalDirection:
-        return self._strategies[strategy_id].evaluate(candles, features)
+    async def get_strategy(self, strategy_id: str) -> Strategy | None:
+        return await self._store.get(strategy_id)
+
+    async def list(self) -> list[StrategyMeta]:
+        return [StrategyMeta(strategy_id=s.strategy_id, name=s.params.name, params={}) for s in await self._store.all()]
+
+    async def evaluate(
+        self, strategy_id: str, candles: Sequence[Any], features: Sequence[Any]
+    ) -> Result[SignalDirection, DomainError]:
+        strategy = await self._store.get(strategy_id)
+        if strategy is None:
+            return Err(NotFoundError(f"unknown strategy: {strategy_id}"))
+        return Ok(strategy.evaluate(candles, features))

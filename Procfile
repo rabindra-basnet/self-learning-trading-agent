@@ -1,3 +1,3 @@
-engine: uv run uvicorn app.main:app --reload --port 8000
-selfimprove: uv run python -m app.workers.runner
-web: pnpm --dir web dev
+engine: .venv\Scripts\python.exe -m uvicorn app.main:app --port 8000
+# selfimprove: uv run -m app.workers.runner
+# web: pnpm --dir web dev

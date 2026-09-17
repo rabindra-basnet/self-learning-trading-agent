@@ -1,14 +1,10 @@
 """strategies inbound/outbound schemas."""
 
-from typing import Any
+from __future__ import annotations
 
 from pydantic import BaseModel
 
-
-class StrategyMeta(BaseModel):
-    strategy_id: str
-    name: str
-    params: dict[str, Any]
+from app.modules.strategies.domain.entities import StrategyMeta
 
 
 class EvaluateResponse(BaseModel):
@@ -16,3 +12,6 @@ class EvaluateResponse(BaseModel):
     symbol: str
     timeframe: str
     signal: str
+
+
+__all__ = ["EvaluateResponse", "StrategyMeta"]

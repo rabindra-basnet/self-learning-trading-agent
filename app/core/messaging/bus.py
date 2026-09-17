@@ -1,4 +1,4 @@
-"""Domain event bus: capability port (EventBus) + in-process implementation.
+"""Domain event bus: capability port (EventBus).
 
 Third-party buses (Redis Streams, Kafka/Redpanda) are adapters in
 `app/infrastructure/capability/*` implementing this same port — slices never see them.
@@ -37,20 +37,3 @@ class EventBus(Protocol):
     async def publish(self, *events: DomainEvent) -> None: ...
 
     async def subscribe(self, event_type: type[DomainEvent], handler: EventHandler) -> None: ...
-
-
-class InMemoryEventBus:
-    """In-process async bus used in dev and tests."""
-
-    def __init__(self) -> None:
-        self._handlers: dict[type[DomainEvent], list[EventHandler]] = {}
-        self.published: list[DomainEvent] = []
-
-    async def publish(self, *events: DomainEvent) -> None:
-        self.published.extend(events)
-        for event in events:
-            for handler in self._handlers.get(type(event), []):
-                await handler(event)
-
-    async def subscribe(self, event_type: type[DomainEvent], handler: EventHandler) -> None:
-        self._handlers.setdefault(event_type, []).append(handler)

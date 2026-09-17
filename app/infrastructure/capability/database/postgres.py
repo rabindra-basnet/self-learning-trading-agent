@@ -34,6 +34,14 @@ class PostgresConnection:
             self._session_factory = async_sessionmaker(bind=self._engine, class_=AsyncSession, expire_on_commit=False)
         return self._engine
 
+    @property
+    def session_factory(self) -> async_sessionmaker[AsyncSession]:
+        """Per-call session maker — repos create their own session per operation."""
+        if self._session_factory is None:
+            self._ensure_engine()
+        assert self._session_factory is not None
+        return self._session_factory
+
     @asynccontextmanager
     async def session_scope(self) -> AsyncGenerator[AsyncSession, None]:
         factory = self._session_factory or async_sessionmaker(

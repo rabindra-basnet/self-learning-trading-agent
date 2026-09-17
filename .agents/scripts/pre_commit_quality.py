@@ -10,6 +10,7 @@ Usage:
     python .agents/scripts/pre_commit_quality.py --fix  # auto-fix what ruff can
 """
 
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -28,6 +29,13 @@ BOLD = "\033[1m"
 passed = 0
 failed = 0
 warnings = 0
+
+SECRET_LITERAL_PATTERNS = (
+    r"""\b(api[_-]?key|apikey|secret|password|passwd|token|passphrase)\b\s*[:=]\s*['"][A-Za-z0-9_\-/+.]{20,}['"]""",
+    r"-----BEGIN [A-Z ]*PRIVATE KEY-----",
+    r"\bAKIA[0-9A-Z]{16}\b",
+    r"\bsk-[A-Za-z0-9]{20,}\b",
+)
 
 
 def run_check(name: str, cmd: list[str], *, allow_warnings: bool = False) -> bool:
@@ -68,7 +76,13 @@ def run_check(name: str, cmd: list[str], *, allow_warnings: bool = False) -> boo
         return False
 
 
-def grep_check(name: str, pattern: str, search_dirs: list[str], exclude: str = "") -> bool:
+def grep_check(
+    name: str,
+    pattern: str,
+    search_dirs: list[str],
+    exclude: str = "",
+    exclude_paths: tuple[str, ...] = (),
+) -> bool:
     global passed, failed
     print(f"\n{BOLD}[CHECK]{RESET} {name}")
     hits = []
@@ -77,7 +91,10 @@ def grep_check(name: str, pattern: str, search_dirs: list[str], exclude: str = "
         if not dir_path.exists():
             continue
         for py_file in dir_path.rglob("*.py"):
-            if "__pycache__" in str(py_file):
+            rel = py_file.relative_to(REPO_ROOT).as_posix()
+            if "__pycache__" in rel:
+                continue
+            if any(excluded in rel for excluded in exclude_paths):
                 continue
             try:
                 lines = py_file.read_text(encoding="utf-8", errors="ignore").splitlines()
@@ -85,9 +102,9 @@ def grep_check(name: str, pattern: str, search_dirs: list[str], exclude: str = "
                 continue
             for i, line in enumerate(lines, 1):
                 if pattern in line:
-                    if exclude and exclude in line:
+                    if exclude and re.search(exclude, line):
                         continue
-                    hits.append(f"  {py_file.relative_to(REPO_ROOT)}:{i}: {line.strip()}")
+                    hits.append(f"  {rel}:{i}: {line.strip()}")
     if hits:
         print(f"  {RED}FAIL{RESET} ({len(hits)} violations)")
         for h in hits[:10]:
@@ -100,6 +117,37 @@ def grep_check(name: str, pattern: str, search_dirs: list[str], exclude: str = "
         print(f"  {GREEN}PASS{RESET}")
         passed += 1
         return True
+
+
+def regex_check(name: str, patterns: tuple[str, ...], search_dirs: list[str]) -> bool:
+    """Fail when a hardcoded secret *value* appears in source (not identifiers)."""
+    global passed, failed
+    print(f"\n{BOLD}[CHECK]{RESET} {name}")
+    hits = []
+    for d in search_dirs:
+        dir_path = REPO_ROOT / d
+        if not dir_path.exists():
+            continue
+        for py_file in dir_path.rglob("*.py"):
+            rel = py_file.relative_to(REPO_ROOT).as_posix()
+            if "__pycache__" in rel:
+                continue
+            try:
+                lines = py_file.read_text(encoding="utf-8", errors="ignore").splitlines()
+            except Exception:
+                continue
+            for i, line in enumerate(lines, 1):
+                if any(re.search(p, line) for p in patterns):
+                    hits.append(f"  {rel}:{i}: {line.strip()[:100]}")
+    if hits:
+        print(f"  {RED}FAIL{RESET} ({len(hits)} violations)")
+        for h in hits[:10]:
+            print(f"    {h}")
+        failed += 1
+        return False
+    print(f"  {GREEN}PASS{RESET}")
+    passed += 1
+    return True
 
 
 def main():
@@ -115,19 +163,19 @@ def main():
         "No SDK imports in domain",
         "import ccxt",
         [str(MODULES_DIR)],
-        exclude="infrastructure",
+        exclude_paths=("infrastructure/",),
     )
     grep_check(
         "No SDK imports in domain",
         "import redis",
         [str(MODULES_DIR)],
-        exclude="infrastructure",
+        exclude_paths=("infrastructure/",),
     )
     grep_check(
         "No SDK imports in domain",
         "import sqlalchemy",
         [str(MODULES_DIR)],
-        exclude="infrastructure",
+        exclude_paths=("infrastructure/",),
     )
 
     # --- Logging ---
@@ -140,11 +188,10 @@ def main():
 
     # --- Secrets ---
     print(f"\n{BOLD}--- SECRETS ---{RESET}")
-    grep_check(
-        "No secrets in code",
-        "api_key",
-        [str(APP_DIR)],
-        exclude="SecretStr|get_secret_value|settings|config|__pycache__",
+    regex_check(
+        "No hardcoded secret literals",
+        SECRET_LITERAL_PATTERNS,
+        [str(APP_DIR), str(TESTS_DIR)],
     )
 
     # --- Tooling ---

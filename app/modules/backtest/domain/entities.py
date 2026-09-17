@@ -5,8 +5,9 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from app.core.messaging.bus import DomainEvent
 from pydantic import BaseModel, Field
+
+from app.core.messaging.bus import DomainEvent
 
 
 class BacktestConfig(BaseModel):

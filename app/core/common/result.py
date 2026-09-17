@@ -6,11 +6,13 @@ map their own failures here, never leaking vendor types.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TypeVar
 
 T = TypeVar("T")
 E = TypeVar("E")
+F = TypeVar("F")
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,10 +38,10 @@ class Result[T, E]:
             return self._error
         raise ValueError("Result is an ok value")
 
-    def map_err(self, fn) -> Result[T, E]:
-        if self.is_err:
-            return Result(_error=fn(self._error))
-        return self
+    def map_err(self, fn: Callable[[E], F]) -> Result[T, F]:
+        if self._error is None:
+            return Result(_value=self._value)
+        return Result(_error=fn(self._error))
 
     def __repr__(self) -> str:
         if self.is_ok:
@@ -47,9 +49,9 @@ class Result[T, E]:
         return f"Err({self._error!r})"
 
 
-def Ok[T](value: T) -> Result[T, E]:
+def Ok[T, E](value: T) -> Result[T, E]:
     return Result(_value=value)
 
 
-def Err[E](error: E) -> Result[T, E]:
+def Err[T, E](error: E) -> Result[T, E]:
     return Result(_error=error)

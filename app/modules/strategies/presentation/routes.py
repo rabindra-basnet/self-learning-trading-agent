@@ -2,36 +2,36 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from app.modules.strategies.presentation.schemas import EvaluateResponse, StrategyMeta
+from app.core.exceptions.taxonomy import http_status_for
 from app.modules.strategies.application.manager import StrategyManager
+from app.modules.strategies.presentation.schemas import EvaluateResponse, StrategyMeta
 
 router = APIRouter(prefix="/strategies", tags=["strategies"])
 
 
 def _get_manager(request: Request) -> StrategyManager:
-    return request.app.state.container  # type: ignore[no-any-return]
+    return cast("StrategyManager", request.app.state.container.resolve(StrategyManager))
 
 
 @router.get("", response_model=list[StrategyMeta])
-def list_strategies(manager: Annotated[StrategyManager, Depends(_get_manager)]) -> list[StrategyMeta]:
-    return manager.list()
+async def list_strategies(
+    manager: Annotated[StrategyManager, Depends(_get_manager)],
+) -> list[StrategyMeta]:
+    return await manager.list()
 
 
 @router.post("/{strategy_id}/evaluate", response_model=EvaluateResponse)
-def evaluate(
+async def evaluate(
     strategy_id: str,
     manager: Annotated[StrategyManager, Depends(_get_manager)],
     symbol: str = "BTC-USDT",
     timeframe: str = "1h",
 ) -> EvaluateResponse:
-    try:
-        signal = manager.evaluate(strategy_id, (), ())
-    except KeyError:
-        raise HTTPException(status_code=404, detail=f"unknown strategy: {strategy_id}") from None
-    return EvaluateResponse(
-        strategy_id=strategy_id, symbol=symbol, timeframe=timeframe, signal=signal.value
-    )
+    result = await manager.evaluate(strategy_id, (), ())
+    if result.is_err:
+        raise HTTPException(status_code=http_status_for(result.error_value()), detail=result.error_value().message)
+    return EvaluateResponse(strategy_id=strategy_id, symbol=symbol, timeframe=timeframe, signal=result.ok_value().value)

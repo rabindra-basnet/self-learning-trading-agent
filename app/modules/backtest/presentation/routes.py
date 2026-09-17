@@ -4,20 +4,20 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import cast
 
 from fastapi import APIRouter, HTTPException, Request
 
-from app.core.common.result import Err
 from app.core.exceptions.taxonomy import http_status_for
-from app.modules.backtest.presentation.schemas import BacktestRunRequest, BacktestRunResponse
 from app.modules.backtest.application.engine import BacktestEngine
 from app.modules.backtest.domain.entities import BacktestConfig
+from app.modules.backtest.presentation.schemas import BacktestRunRequest, BacktestRunResponse
 
 router = APIRouter(prefix="/backtest", tags=["backtest"])
 
 
 def _engine(request: Request) -> BacktestEngine:
-    return request.app.state.container.resolve(BacktestEngine)
+    return cast("BacktestEngine", request.app.state.container.resolve(BacktestEngine))
 
 
 @router.post("/run", response_model=BacktestRunResponse)
@@ -38,6 +38,6 @@ async def run_backtest(request: Request, body: BacktestRunRequest) -> BacktestRu
         return BacktestRunResponse(results=results)
 
     result = await engine.run(config)
-    if isinstance(result, Err):
-        raise HTTPException(status_code=http_status_for(result.error_value), detail=result.error_value.message)
+    if result.is_err:
+        raise HTTPException(status_code=http_status_for(result.error_value()), detail=result.error_value().message)
     return BacktestRunResponse(results=[result.ok_value()])

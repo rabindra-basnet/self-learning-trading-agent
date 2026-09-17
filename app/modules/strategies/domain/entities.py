@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from app.core.messaging.bus import DomainEvent
 from pydantic import BaseModel
+
+from app.core.messaging.bus import DomainEvent
 
 
 class StrategyMeta(BaseModel):

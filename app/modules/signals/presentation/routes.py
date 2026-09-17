@@ -3,27 +3,30 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import cast
 
 from fastapi import APIRouter, Request
 
-from app.modules.marketdata.application.services import CandleQueryService
-from app.modules.marketdata.domain.entities import Symbol, Timeframe
-from app.modules.signals.presentation.schemas import FeatureVectorResponse
+from app.modules.marketdata.contracts import Symbol, Timeframe
 from app.modules.signals.application.services import FeatureService
+from app.modules.signals.contracts import CandleQueryPort
+from app.modules.signals.presentation.schemas import FeatureVectorResponse
 
 router = APIRouter(prefix="/signals", tags=["signals"])
 
 
-def _query(request: Request) -> CandleQueryService:
-    return request.app.state.container.resolve(CandleQueryService)
+def _query(request: Request) -> CandleQueryPort:
+    return cast("CandleQueryPort", request.app.state.container.resolve(CandleQueryPort))
 
 
 def _features(request: Request) -> FeatureService:
-    return request.app.state.container.resolve(FeatureService)
+    return cast("FeatureService", request.app.state.container.resolve(FeatureService))
 
 
 @router.get("/features", response_model=list[FeatureVectorResponse])
-async def compute_features(request: Request, symbol: str = "BTC/USDT", timeframe: str = "1h", hours: int = 24):
+async def compute_features(
+    request: Request, symbol: str = "BTC/USDT", timeframe: str = "1h", hours: int = 24
+) -> list[FeatureVectorResponse]:
     candles = await _query(request).range(
         Symbol.of(symbol),
         Timeframe(timeframe),

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import secrets
+from uuid import UUID, uuid4
 
 from app.core.common.clock import Clock
 from app.core.common.result import Err, Ok, Result
@@ -85,13 +86,14 @@ class ApiKeyService:
         self._hasher = hasher
         self._clock = clock
 
-    async def create(self, user_id, label: str) -> Result[tuple[ApiKey, str], DomainError]:
+    async def create(self, user_id: UUID, label: str) -> Result[tuple[ApiKey, str], DomainError]:
         user = await self._users.get_by_id(user_id)
         if user is None:
             return Err(DomainError("user_not_found", provider="auth"))
         secret = secrets.token_urlsafe(24)
         raw = f"{label.lower().replace(' ', '-')}_{secret}"
         key = ApiKey(
+            id=uuid4(),
             user_id=user.id,
             key_prefix=raw.split("_")[0],
             hashed_key=self._hasher.hash(raw),
@@ -100,7 +102,7 @@ class ApiKeyService:
         await self._keys.save(key)
         return Ok((key, secret))
 
-    async def list(self, user_id) -> list[ApiKey]:
+    async def list(self, user_id: UUID) -> list[ApiKey]:
         return await self._keys.list_by_user(user_id)
 
     async def lookup(self, raw_key: str) -> ApiKey | None:
@@ -112,5 +114,5 @@ class ApiKeyService:
             return None
         return stored
 
-    async def revoke(self, key_id) -> None:
+    async def revoke(self, key_id: UUID) -> None:
         await self._keys.revoke(key_id)

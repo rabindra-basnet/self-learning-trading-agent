@@ -2,209 +2,181 @@
 
 Lives in the app layer; everything below depends only on contracts/ports.
 All adapters selected here are SKIN, fully replaceable per environment.
+Real adapters only: Postgres (auth), ClickHouse (candles), Redis (bus/outbox),
+Binance (market data).
 """
 
 from __future__ import annotations
 
-import contextlib
+import asyncio
+from typing import cast
 
 from app.core.common.clock import SystemClock
 from app.core.config.settings import Settings
 from app.core.container import Container
+from app.core.exceptions.taxonomy import ConfigurationError, FatalSystemError
 from app.core.logging.setup import configure_logging
-from app.core.messaging.bus import EventBus, InMemoryEventBus
-from app.core.messaging.outbox import NoopOutbox, OutboxPublisher
+from app.core.messaging.bus import EventBus
+from app.core.messaging.outbox import Outbox, OutboxPublisher
 from app.core.observability.metrics import NoopMeter
 from app.infrastructure.capability.bus.redis_bus import RedisEventBus
-from app.infrastructure.capability.database import (
-    ClickHouseConnection,
-    PostgresConnection,
-)
+from app.infrastructure.capability.database import ClickHouseConnection, PostgresConnection
 from app.infrastructure.capability.outbox.redis_outbox import RedisOutbox
 from app.infrastructure.capability.redis import RedisConnection
-from app.infrastructure.stores.in_memory.candle_store import InMemoryCandleStore
-from app.modules.auth.application.services import (
-    ApiKeyService,
-    AuthService,
-)
-from app.modules.auth.infrastructure.providers.auth.hashers import (
-    Pbkdf2PasswordHasher,
-)
-from app.modules.auth.infrastructure.providers.auth.jwt.manager import (
-    JwtTokenManager,
-)
-from app.modules.auth.infrastructure.stores.in_memory_repos import (
-    InMemoryApiKeyRepository,
-    InMemoryUserRepository,
+from app.infrastructure.providers.registry import UnknownProviderError, provider_registry
+from app.infrastructure.stores.clickhouse.candle_store import ClickHouseCandleStore
+from app.modules.auth.application.services import ApiKeyService, AuthService
+from app.modules.auth.domain.ports import ApiKeyRepository, UserRepository
+from app.modules.auth.infrastructure.providers.auth.hashers import Pbkdf2PasswordHasher
+from app.modules.auth.infrastructure.providers.auth.jwt.manager import JwtTokenManager
+from app.modules.auth.infrastructure.stores import (
+    PostgresApiKeyRepository,
+    PostgresUserRepository,
 )
 from app.modules.backtest.application.engine import BacktestEngine
-from app.modules.marketdata.application.services import (
-    CandleIngestService,
-    CandleQueryService,
+from app.modules.marketdata.application.services import CandleIngestService, CandleQueryService
+from app.modules.marketdata.domain.ports import CandleStore, MarketDataSource
+from app.modules.marketdata.infrastructure.providers.registry import (
+    CAPABILITY as MARKET_DATA_CAPABILITY,
+)
+from app.modules.marketdata.infrastructure.providers.registry import (
+    register_market_data_providers,
 )
 from app.modules.risk.application.services import RiskService
-from app.modules.risk.infrastructure.stores.in_memory import (
-    InMemoryRiskProfileStore,
-)
+from app.modules.risk.infrastructure.stores import RedisRiskProfileStore
 from app.modules.signals.application.services import FeatureService
+from app.modules.signals.contracts import CandleQueryPort
 from app.modules.signals.infrastructure.providers.indicators.pandas.adapter import (
     PandasFeatureComputer,
 )
 from app.modules.strategies.application.manager import StrategyManager
-from app.modules.strategies.domain.ports import Strategy
 from app.modules.strategies.infrastructure.providers.strategies.library import (
-    builtin_strategies,
+    BUILTIN_STRATEGIES,
 )
+from app.modules.strategies.infrastructure.stores import StrategyLibraryStore
 
 
 def build_container(settings: Settings) -> Container:
-    configure_logging()
+    configure_logging(env=settings.app_env, level=settings.log_level)
 
     container = Container()
     clock = SystemClock()
 
     # --- capability connections -----------------------------------------
-    pg = PostgresConnection(settings.database.url)
+    pg = PostgresConnection(settings.database_url)
     ch = ClickHouseConnection(
-        host=settings.clickhouse.host,
-        port=settings.clickhouse.port,
-        user=settings.clickhouse.user,
-        password=settings.clickhouse.password,
-        database=settings.clickhouse.database,
+        host=settings.clickhouse_host,
+        port=settings.clickhouse_port,
+        user=settings.clickhouse_user,
+        password=settings.clickhouse_password,
+        database=settings.clickhouse_database,
+        secure=settings.clickhouse_secure,
     )
-    rd = RedisConnection(settings.redis.url)
+    rd = RedisConnection(settings.redis_url)
     container.register_instance(PostgresConnection, pg)
     container.register_instance(ClickHouseConnection, ch)
     container.register_instance(RedisConnection, rd)
 
-    # --- event bus (in_memory | redis_streams) --------------------------
-    if settings.event_bus == "redis_streams":
-        bus: EventBus = RedisEventBus(rd.client)
-    else:
-        bus = InMemoryEventBus()
-    container.register_instance(RedisEventBus, RedisEventBus(rd.client))
-    container._event_bus = bus  # type: ignore[attr-defined]
+    # --- event bus (Redis Streams, durable) -----------------------------
+    bus = RedisEventBus(rd.client)
+    container.register_instance(EventBus, bus)
+    container.register_instance(RedisEventBus, bus)
 
-    # --- outbox / metrics -----------------------------------------------
-    container.register(NoopOutbox, NoopOutbox())
-    container.register(RedisOutbox, RedisOutbox(rd.client))
-    container.register(NoopMeter, NoopMeter())
+    # --- outbox / metrics ------------------------------------------------
+    outbox = RedisOutbox(rd.client)
+    meter = NoopMeter()
+    container.register_instance(Outbox, outbox)
+    container.register_instance(NoopMeter, meter)
     container.register(
         OutboxPublisher,
-        lambda: OutboxPublisher(
-            outbox=container.resolve(NoopOutbox),
-            bus=_bus(container),
-            meter=container.resolve(NoopMeter),
-        ),
+        lambda: OutboxPublisher(outbox=outbox, bus=bus, meter=meter),
     )
 
-    # --- auth -----------------------------------------------------------
+    # --- auth (Postgres identity store) ----------------------------------
     hasher = Pbkdf2PasswordHasher()
     token = JwtTokenManager(
-        secret=settings.auth.jwt_secret.get_secret_value(),
-        access_ttl_min=settings.auth.access_ttl_min,
-        refresh_ttl_days=settings.auth.refresh_ttl_days,
-        algorithm=settings.auth.jwt_alg,
+        secret=settings.auth_jwt_secret.get_secret_value(),
+        access_ttl_min=settings.auth_access_ttl_min,
+        refresh_ttl_days=settings.auth_refresh_ttl_days,
+        algorithm=settings.auth_jwt_alg,
     )
-    users = InMemoryUserRepository()
-    keys = InMemoryApiKeyRepository()
+    users = PostgresUserRepository(pg.session_factory)
+    keys = PostgresApiKeyRepository(pg.session_factory)
     container.register_instance(Pbkdf2PasswordHasher, hasher)
     container.register_instance(JwtTokenManager, token)
-    container.register_instance(InMemoryUserRepository, users)
-    container.register_instance(InMemoryApiKeyRepository, keys)
-    container.register(
-        AuthService,
-        lambda: AuthService(users, hasher, token, clock),
-    )
-    container.register(
-        ApiKeyService,
-        lambda: ApiKeyService(keys, users, hasher, clock),
-    )
+    container.register_instance(UserRepository, users)
+    container.register_instance(ApiKeyRepository, keys)
+    container.register(AuthService, lambda: AuthService(users, hasher, token, clock))
+    container.register(ApiKeyService, lambda: ApiKeyService(keys, users, hasher, clock))
 
-    # --- marketdata -----------------------------------------------------
-    store = InMemoryCandleStore()
-    container.register_instance(InMemoryCandleStore, store)
+    # --- marketdata (Binance → ClickHouse) --------------------------------
+    candle_store = ClickHouseCandleStore(ch)
+    market_data = _build_market_data(settings)
+    query_service = CandleQueryService(candle_store)
+    container.register_instance(CandleStore, candle_store)
+    container.register_instance(MarketDataSource, market_data)
+    container.register_instance(CandleQueryService, query_service)
+    container.register_instance(CandleQueryPort, query_service)
     container.register(
         CandleIngestService,
-        lambda: CandleIngestService(store, store, _bus(container), clock),
-    )
-    container.register(
-        CandleQueryService,
-        lambda: CandleQueryService(store),
+        lambda: CandleIngestService(market_data, candle_store, bus, clock),
     )
 
-    # --- signals --------------------------------------------------------
+    # --- signals ----------------------------------------------------------
     computer = PandasFeatureComputer()
-    container.register(PandasFeatureComputer, computer)
-    container.register(
-        FeatureService,
-        lambda: FeatureService(computer, _bus(container)),
-    )
+    container.register_instance(PandasFeatureComputer, computer)
+    container.register(FeatureService, lambda: FeatureService(computer, bus))
 
-    # --- strategies -----------------------------------------------------
-    strategy_store = _InMemoryStrategyStore()
-    manager = StrategyManager(strategy_store, _bus(container))
+    # --- strategies -------------------------------------------------------
+    manager = StrategyManager(StrategyLibraryStore(BUILTIN_STRATEGIES), bus)
     container.register_instance(StrategyManager, manager)
 
-    # --- backtest -------------------------------------------------------
+    # --- backtest ---------------------------------------------------------
     container.register(
         BacktestEngine,
-        lambda: BacktestEngine(store, computer, manager, _bus(container)),
+        lambda: BacktestEngine(candle_store, computer, manager, bus),
     )
 
-    # --- risk -----------------------------------------------------------
+    # --- risk (Redis-backed profile + kill switch) ------------------------
     container.register(
         RiskService,
-        lambda: RiskService(InMemoryRiskProfileStore(), _bus(container)),
+        lambda: RiskService(RedisRiskProfileStore(rd.client), bus),
     )
 
     return container
 
 
+async def verify_dependencies(container: Container) -> None:
+    """Fail-closed gate: abort startup when an external dependency is unreachable."""
+    checks = await asyncio.gather(
+        container.resolve(PostgresConnection).ping(),
+        container.resolve(ClickHouseConnection).ping(),
+        container.resolve(RedisConnection).ping(),
+    )
+    failed = [name for name, ok in zip(("postgres", "clickhouse", "redis"), checks, strict=True) if not ok]
+    if failed:
+        raise FatalSystemError(f"startup dependency check failed: {', '.join(failed)}")
+
+
 async def initialize(container: Container) -> None:
     """Async wiring that needs an event loop (strategy registration emits events)."""
+    await container.connect()
+    await verify_dependencies(container)
     manager = container.resolve(StrategyManager)
-    for strategy in builtin_strategies().values():
+    for strategy in BUILTIN_STRATEGIES.values():
         await manager.register(strategy)
 
 
 async def shutdown(container: Container) -> None:
-    with contextlib.suppress(Exception):
-        await container.resolve(PostgresConnection).dispose()
-    with contextlib.suppress(Exception):
-        await container.resolve(ClickHouseConnection).dispose()
-    with contextlib.suppress(Exception):
-        await container.resolve(RedisConnection).dispose()
-    bus = getattr(container, "_event_bus", None)
-    if bus is not None and hasattr(bus, "close"):
-        with contextlib.suppress(Exception):
-            await bus.close()
+    """Delegate lifecycle teardown to the injector (dispose/close per adapter)."""
+    await container.disconnect()
 
 
-def _bus(container: Container) -> EventBus:
-    return container._event_bus  # type: ignore[return-value]
-
-
-class _InMemoryStrategyStore:
-    """Minimal StrategyStore to satisfy StrategyManager."""
-
-    def __init__(self) -> None:
-        self._strategies: dict[str, Strategy] = {}
-
-    def register(self, strategy: Strategy) -> None:
-        self._strategies[strategy.strategy_id] = strategy
-
-    def get(self, strategy_id: str) -> Strategy | None:
-        return self._strategies.get(strategy_id)
-
-    def list_meta(self) -> list:
-        from app.modules.strategies.domain.entities import StrategyMeta
-
-        return [
-            StrategyMeta(
-                strategy_id=sid,
-                name=s.params.name,
-                params=s.params.model_dump(),
-            )
-            for sid, s in self._strategies.items()
-        ]
+def _build_market_data(settings: Settings) -> MarketDataSource:
+    """Resolve the configured market-data vendor through the provider registry."""
+    register_market_data_providers()
+    provider = settings.market_data_provider
+    try:
+        return cast(MarketDataSource, provider_registry.create(MARKET_DATA_CAPABILITY, provider))
+    except UnknownProviderError as exc:
+        raise ConfigurationError(str(exc), provider=provider) from exc

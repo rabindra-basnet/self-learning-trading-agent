@@ -14,10 +14,10 @@ from app.modules.backtest.domain.entities import (
     BacktestResult,
     BacktestTrade,
 )
-from app.modules.backtest.domain.ports import BacktestDataStore, BacktestFeatureComputer
+from app.modules.backtest.domain.ports import BacktestDataStore, BacktestFeatureComputer, StrategyGateway
 from app.modules.marketdata.contracts import Candle, Symbol, Timeframe
-from app.modules.strategies.application.manager import StrategyManager
-from app.modules.strategies.domain.ports import SignalDirection
+from app.modules.signals.contracts import FeatureVector
+from app.modules.strategies.contracts import SignalDirection, Strategy
 
 
 class BacktestEngine:
@@ -25,7 +25,7 @@ class BacktestEngine:
         self,
         store: BacktestDataStore,
         computer: BacktestFeatureComputer,
-        manager: StrategyManager,
+        manager: StrategyGateway,
         bus: EventBus,
     ) -> None:
         self._store = store
@@ -33,22 +33,22 @@ class BacktestEngine:
         self._manager = manager
         self._bus = bus
 
-    def _require_strategy(self, strategy_id: str):
-        strategy = self._manager.get_strategy(strategy_id)
+    async def _require_strategy(self, strategy_id: str) -> Strategy:
+        strategy = await self._manager.get_strategy(strategy_id)
         if strategy is None:
             raise NotFoundError(f"unknown strategy: {strategy_id}")
         return strategy
 
     async def run(self, config: BacktestConfig) -> Result[BacktestResult, DomainError]:
-        self._require_strategy(config.strategy_id)
+        await self._require_strategy(config.strategy_id)
         candles = await self._store.query_range(
             Symbol.of(config.symbol), Timeframe(config.timeframe), config.start, config.end
         )
         if len(candles) < 30:
             return Err(InsufficientDataError("not enough candles for backtest"))
         features = self._computer.compute(candles)
-        result = self._simulate(config, candles, features)
-        self._bus.publish(
+        result = await self._simulate(config, candles, features)
+        await self._bus.publish(
             BacktestCompleted(
                 symbol=config.symbol,
                 strategy_id=config.strategy_id,
@@ -58,7 +58,9 @@ class BacktestEngine:
         )
         return Ok(result)
 
-    def _simulate(self, config: BacktestConfig, candles: list[Candle], feats: list) -> BacktestResult:
+    async def _simulate(
+        self, config: BacktestConfig, candles: list[Candle], feats: list[FeatureVector]
+    ) -> BacktestResult:
         position: SignalDirection | None = None
         entry_at = candles[0].opened_at
         entry_price = Decimal("0")
@@ -70,7 +72,7 @@ class BacktestEngine:
 
         for i in range(len(candles)):
             candle = candles[i]
-            direction = self._direction(config, candles[: i + 1], feats[: i + 1])
+            direction = await self._direction(config, candles[: i + 1], feats[: i + 1])
 
             if position is None and direction == SignalDirection.BUY:
                 position = SignalDirection.BUY
@@ -137,10 +139,12 @@ class BacktestEngine:
             trade_count=len(trades),
         )
 
-    def _direction(self, config: BacktestConfig, candles: list[Candle], feats: list):
-        result = self._manager.evaluate(config.strategy_id, candles, feats)
-        if isinstance(result, Err):
-            raise result.error_value
+    async def _direction(
+        self, config: BacktestConfig, candles: list[Candle], feats: list[FeatureVector]
+    ) -> SignalDirection:
+        result = await self._manager.evaluate(config.strategy_id, candles, feats)
+        if result.is_err:
+            raise result.error_value()
         signal = result.ok_value()
         return SignalDirection(signal) if signal in ("BUY", "SELL", "HOLD") else SignalDirection.HOLD
 
@@ -153,6 +157,6 @@ class BacktestEngine:
             f_end = f_start + timedelta(seconds=step)
             cfg = config.model_copy(update={"start": f_start, "end": f_end, "seed": (config.seed or 0) + fold})
             res = await self.run(cfg)
-            if isinstance(res, Ok):
+            if res.is_ok:
                 results.append(res.ok_value())
         return results

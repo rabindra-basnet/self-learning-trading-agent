@@ -1,97 +1,75 @@
 """Application + integration configuration (pydantic-settings).
 
-Provider-specific config is OWned by each integration boundary. The top-level
-`Settings` only selects *which* provider for a capability.
+ONE flat `Settings` class — no nested config models, no delimiter. Env keys are
+single-underscore and match the field name exactly (``AUTH_JWT_SECRET``,
+``DATABASE_URL``, ``CLICKHOUSE_HOST``, ``MARKET_DATA_BINANCE_API_KEY``, ...).
+
+External-dependency fields (auth secret, Postgres, ClickHouse, Redis) are
+REQUIRED and have no defaults, so a missing value raises at construction time
+and aborts startup (fail-closed) instead of running half-wired.
 """
 
 from __future__ import annotations
 
 from functools import lru_cache
 
-from pydantic import BaseModel, Field, SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-
-class BinanceConfig(BaseModel):
-    base_url: str = "https://api.binance.com"
-    api_key: SecretStr = Field(default_factory=lambda: SecretStr(""))
-    api_secret: SecretStr = Field(default_factory=lambda: SecretStr(""))
-    rate_per_sec: int = 5
-    timeout_sec: float = 10.0
-    retries: int = 3
-    backoff_base_sec: float = 0.5
-    circuit_open_after: int = 5
-
-
-class MarketDataSettings(BaseModel):
-    provider: str = "binance"  # swap knob: binance | kraken | ...
-    binance: BinanceConfig = Field(default_factory=BinanceConfig)
-
-
-class LlmSettings(BaseModel):
-    provider: str = "zen"
-    base_url: str = "https://opencode.ai/zen/v1"
-    model: str = "nemotron-3-ultra-free"
-    api_key: SecretStr = Field(default_factory=lambda: SecretStr(""))
-    timeout_sec: float = 60.0
-    retries: int = 3
-
-
-class DatabaseSettings(BaseModel):
-    url: str = "postgresql+asyncpg://trading:trading@localhost:5432/trading"
-
-
-class ClickHouseSettings(BaseModel):
-    host: str = "localhost"
-    port: int = 8123
-    user: str = "default"
-    password: str = ""
-    database: str = "trading"
-
-
-class RedisSettings(BaseModel):
-    url: str = "redis://localhost:6379/0"
-
-
-class AuthSettings(BaseModel):
-    jwt_secret: SecretStr
-    jwt_alg: str = "HS256"
-    access_ttl_min: int = 15
-    refresh_ttl_days: int = 7
-
-
-class SelfImproveSettings(BaseModel):
-    """Improve-until-plateau event-loop knobs."""
-
-    enabled: bool = False
-    round_interval_sec: float = 300.0
-    max_stale_rounds: int = 3
-    max_rounds: int | None = None
-    symbol: str = "BTC/USDT"
-    timeframe: str = "1h"
-    lookback_days: int = 60
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
+        env_ignore_empty=True,
         extra="ignore",
     )
 
+    # --- runtime ----------------------------------------------------------
     app_env: str = "dev"
     log_level: str = "INFO"
+    event_bus: str = "redis_streams"  # redis_streams | (kafka/rabbitmq adapters later)
 
-    auth: AuthSettings
-    database: DatabaseSettings = Field(default_factory=DatabaseSettings)
-    clickhouse: ClickHouseSettings = Field(default_factory=ClickHouseSettings)
-    redis: RedisSettings = Field(default_factory=RedisSettings)
+    # --- required external dependencies (no default -> missing kills startup)
+    auth_jwt_secret: SecretStr
+    database_url: str
+    clickhouse_host: str
+    clickhouse_database: str
+    redis_url: str
 
-    market_data: MarketDataSettings = Field(default_factory=MarketDataSettings)
-    llm: LlmSettings = Field(default_factory=LlmSettings)
-    self_improve: SelfImproveSettings = Field(default_factory=SelfImproveSettings)
+    # --- auth (tunables) --------------------------------------------------
+    auth_jwt_alg: str = "HS256"
+    auth_access_ttl_min: int = 15
+    auth_refresh_ttl_days: int = 7
 
-    event_bus: str = "in_memory"  # in_memory | redis_streams
+    # --- clickhouse (tunables) --------------------------------------------
+    clickhouse_port: int = 8123
+    clickhouse_user: str = "default"
+    clickhouse_password: str = ""
+    clickhouse_secure: bool = False
+
+    # --- market data ------------------------------------------------------
+    # The provider name is the ONLY knob (docs/INTEGRATION-ARCHITECTURE.md §6);
+    # each vendor owns its own env block (e.g. BinanceConfig reads
+    # MARKET_DATA_BINANCE_*) and is picked up via the provider registry.
+    market_data_provider: str = "binance"  # binance | kraken | coinbase | ...
+
+    # --- llm --------------------------------------------------------------
+    llm_provider: str = "zen"
+    llm_base_url: str = "https://opencode.ai/zen/v1"
+    llm_model: str = "nemotron-3-ultra-free"
+    llm_api_key: SecretStr = Field(default_factory=lambda: SecretStr(""))
+    llm_timeout_sec: float = 60.0
+    llm_retries: int = 3
+
+    # --- self-improvement loop --------------------------------------------
+    self_improve_enabled: bool = False
+    self_improve_round_interval_sec: float = 300.0
+    self_improve_max_stale_rounds: int = 3
+    self_improve_max_rounds: int | None = None
+    self_improve_symbol: str = "BTC/USDT"
+    self_improve_timeframe: str = "1h"
+    self_improve_lookback_days: int = 60
 
 
 @lru_cache

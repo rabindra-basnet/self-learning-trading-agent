@@ -10,6 +10,7 @@ import asyncio
 import contextlib
 import json
 from collections.abc import AsyncGenerator
+from typing import Any, cast
 
 from app.core.logging.setup import get_logger
 from app.core.messaging.bus import DomainEvent, EventHandler
@@ -32,7 +33,7 @@ class RedisEventBus:
                 try:
                     await handler(event)
                 except Exception as exc:
-                    logger.warning("handler_failure", event=event.type_name, error=repr(exc))
+                    logger.warning("handler_failure", event_type=event.type_name, error=repr(exc))
 
     async def subscribe(self, event_type: type[DomainEvent], handler: EventHandler) -> None:
         self._handlers.setdefault(event_type, []).append(handler)
@@ -51,7 +52,7 @@ class RedisEventBus:
                 )
                 if not entries:
                     continue
-                for _stream_name, messages in entries:
+                for _stream_name, messages in cast("list[Any]", entries):
                     for msg_id, fields in messages:
                         try:
                             raw = fields.get("payload", "{}")

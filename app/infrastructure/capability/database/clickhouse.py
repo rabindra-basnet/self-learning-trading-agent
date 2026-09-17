@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import Any
 
 import clickhouse_connect
 from app.core.logging.setup import get_logger
@@ -15,9 +16,18 @@ logger = get_logger("capability.clickhouse")
 
 class ClickHouseConnection:
     def __init__(
-        self, host: str, port: int = 8123, user: str = "default", password: str = "", database: str = "trading"
+        self,
+        host: str,
+        port: int = 8123,
+        user: str = "default",
+        password: str = "",
+        database: str = "trading",
+        *,
+        secure: bool = False,
     ) -> None:
-        self._cfg = dict(host=host, port=port, username=user, password=password, database=database)
+        self._cfg: dict[str, Any] = dict(
+            host=host, port=port, username=user, password=password, database=database, secure=secure
+        )
         self._client: AsyncClient | None = None
 
     async def _get_client(self) -> AsyncClient:
@@ -32,7 +42,7 @@ class ClickHouseConnection:
 
     async def ping(self) -> bool:
         try:
-            client = await self._get()
+            client = await self._get_client()
             await client.ping()
             return True
         except Exception:
