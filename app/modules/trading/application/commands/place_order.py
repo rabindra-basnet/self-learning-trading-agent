@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
-from app.modules.trading.domain.entities import OrderSide
+from app.modules.trading.domain.value_objects.order import OrderSide
 
 
 @dataclass(frozen=True, slots=True)
