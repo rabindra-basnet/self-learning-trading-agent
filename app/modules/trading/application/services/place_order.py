@@ -7,12 +7,13 @@ from app.modules.trading.domain.entities import OrderStateChanged, TradeOrder
 
 
 class PlaceOrderService:
-    def __init__(self, repository, gateway, risk_gate, clock: Clock, publisher) -> None:
+    def __init__(self, repository, gateway, risk_gate, clock: Clock, publisher, positions) -> None:
         self._repository = repository
         self._gateway = gateway
         self._risk_gate = risk_gate
         self._clock = clock
         self._publisher = publisher
+        self._positions = positions
 
     async def execute(self, command: PlaceOrderCommand) -> Result[TradeOrder, str]:
         existing = await self._repository.get_by_client_order_id(command.client_order_id)
@@ -38,10 +39,23 @@ class PlaceOrderService:
                 now=self._clock.utcnow(),
             )
             submitted = await self._gateway.submit_market_order(order)
-        except ValueError as exc:
+        except (ValueError, RuntimeError) as exc:
             return Err(str(exc))
 
         await self._repository.save(submitted)
+
+        if submitted.status.value == "filled" and submitted.executed_price is not None:
+            position = await self._positions.get(submitted.symbol)
+            if position is None:
+                from app.modules.trading.domain.portfolio import Position
+                position = Position.empty(submitted.symbol)
+            updated = position.apply_fill(
+                side=submitted.side.value,
+                quantity=submitted.quantity,
+                price=submitted.executed_price,
+            )
+            await self._positions.save(updated)
+
         await self._publisher.publish(
             OrderStateChanged(
                 order_id=str(submitted.id),
