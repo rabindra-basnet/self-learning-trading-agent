@@ -7,6 +7,7 @@ from app.modules.trading.application.commands.place_order import PlaceOrderComma
 from app.modules.trading.application.services.place_order import PlaceOrderService
 from app.modules.trading.infrastructure.gateways.paper import PaperOrderGateway
 from app.modules.trading.infrastructure.repositories.in_memory import InMemoryOrderRepository
+from app.modules.trading.infrastructure.repositories.in_memory_positions import InMemoryPositionRepository
 
 
 class FixedClock:
@@ -31,7 +32,7 @@ class Events:
 async def test_place_order_is_idempotent():
     repo = InMemoryOrderRepository()
     events = Events()
-    service = PlaceOrderService(repo, PaperOrderGateway(), AllowRisk(), FixedClock(), events)
+    service = PlaceOrderService(repo, PaperOrderGateway(), AllowRisk(), FixedClock(), events, InMemoryPositionRepository())
     command = PlaceOrderCommand(
         symbol="BTC/USDT",
         side="buy",
