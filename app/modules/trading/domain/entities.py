@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
 from uuid import UUID, uuid4
+
+from app.core.messaging.bus import DomainEvent
 
 
 class OrderSide(StrEnum):
@@ -53,6 +55,8 @@ class TradeOrder:
             raise ValueError("requested_price must be positive")
         if not symbol.strip():
             raise ValueError("symbol must not be empty")
+        if not client_order_id.strip():
+            raise ValueError("client_order_id must not be empty")
 
         return cls(
             id=uuid4(),
@@ -72,13 +76,23 @@ class TradeOrder:
             raise ValueError("only pending orders can be filled")
         if executed_price <= 0:
             raise ValueError("executed_price must be positive")
-        return TradeOrder(
-            **{**self.__dict__, "status": OrderStatus.FILLED, "executed_price": executed_price}
+        return replace(
+            self,
+            status=OrderStatus.FILLED,
+            executed_price=executed_price,
         )
 
     def reject(self, reason: str) -> "TradeOrder":
         if self.status is not OrderStatus.PENDING:
             raise ValueError("only pending orders can be rejected")
-        return TradeOrder(
-            **{**self.__dict__, "status": OrderStatus.REJECTED, "rejection_reason": reason}
+        return replace(
+            self,
+            status=OrderStatus.REJECTED,
+            rejection_reason=reason,
         )
+
+
+class OrderStateChanged(DomainEvent):
+    order_id: str
+    status: OrderStatus
+    symbol: str
