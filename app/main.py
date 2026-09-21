@@ -16,6 +16,7 @@ from app.core.logging.setup import configure_logging, get_logger
 from app.di import configure_injector
 from app.infrastructure.capability.database import ClickHouseConnection, PostgresConnection
 from app.infrastructure.capability.redis import RedisConnection
+from app.modules.risk.application.services import RiskService
 from app.modules.strategies.application.manager import StrategyManager
 from app.modules.strategies.infrastructure.providers.strategies.library import BUILTIN_STRATEGIES
 from app.routers import api_router
@@ -28,9 +29,9 @@ injector = configure_injector()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    app.state.injector = injector
     await injector.connect()
 
-    # Fail-closed gate: abort startup if infrastructure is unreachable
     postgres = next(iter(injector.get_dependencies_by_interface(PostgresConnection)))
     clickhouse = next(iter(injector.get_dependencies_by_interface(ClickHouseConnection)))
     redis = next(iter(injector.get_dependencies_by_interface(RedisConnection)))
@@ -45,7 +46,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await injector.disconnect()
         raise FatalSystemError(f"startup dependency check failed: {', '.join(failed)}")
 
-    # StrategyManager async init
     manager = next(iter(injector.get_dependencies_by_interface(StrategyManager)))
     for strategy in BUILTIN_STRATEGIES.values():
         await manager.register(strategy)
