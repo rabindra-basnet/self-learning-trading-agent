@@ -15,6 +15,7 @@ from app.modules.trading.infrastructure.risk import RiskServiceAdapter
 
 _repository = InMemoryOrderRepository()
 _paper_gateway = PaperOrderGateway()
+_positions = InMemoryPositionRepository()
 _live_gateway: CcxtOrderGateway | None = None
 
 
@@ -30,6 +31,7 @@ def get_place_order_service(request: Request) -> PlaceOrderService:
         risk_gate=RiskServiceAdapter(_resolve(request, RiskService)),
         clock=_resolve(request, Clock),
         publisher=_resolve(request, EventBus),
+        positions=_positions,
     )
 
 
