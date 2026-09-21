@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -9,9 +10,8 @@ from app.modules.trading.infrastructure.repositories.in_memory import InMemoryOr
 
 
 class FixedClock:
-    def now(self):
-        from datetime import datetime, timezone
-        return datetime(2026, 1, 1, tzinfo=timezone.utc)
+    def utcnow(self):
+        return datetime(2026, 1, 1, tzinfo=UTC)
 
 
 class AllowRisk:
@@ -23,8 +23,8 @@ class Events:
     def __init__(self):
         self.events = []
 
-    async def publish(self, event):
-        self.events.append(event)
+    async def publish(self, *events):
+        self.events.extend(events)
 
 
 @pytest.mark.asyncio
