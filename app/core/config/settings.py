@@ -60,6 +60,12 @@ class Settings(BaseSettings):
     # MARKET_DATA_BINANCE_*) and is picked up via the provider registry.
     market_data_provider: str = "binance"  # binance | kraken | coinbase | ...
 
+    # --- trading execution -------------------------------------------------
+    trading_execution_mode: str = "paper"  # paper | live
+    trading_exchange: str = "binance"
+    trading_api_key: SecretStr = Field(default_factory=lambda: SecretStr(""))
+    trading_api_secret: SecretStr = Field(default_factory=lambda: SecretStr(""))
+
     # --- llm --------------------------------------------------------------
     llm_provider: str = "zen"
     llm_base_url: str = "https://opencode.ai/zen/v1"
