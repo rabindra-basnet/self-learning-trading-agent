@@ -2,12 +2,23 @@ from __future__ import annotations
 
 from app.core.common.clock import Clock
 from app.core.common.result import Err, Ok, Result
+from app.core.messaging.bus import EventBus
+from app.modules.risk.application.services import RiskService
 from app.modules.trading.application.commands.place_order import PlaceOrderCommand
-from app.modules.trading.domain.entities import OrderStateChanged, TradeOrder
+from app.modules.trading.domain.entities import TradeOrder
+from app.modules.trading.domain.events import OrderStateChanged
 
 
 class PlaceOrderService:
-    def __init__(self, repository, gateway, risk_gate, clock: Clock, publisher, positions) -> None:
+    def __init__(
+        self,
+        repository,
+        gateway,
+        risk_gate: RiskService,
+        clock: Clock,
+        publisher: EventBus,
+        positions,
+    ) -> None:
         self._repository = repository
         self._gateway = gateway
         self._risk_gate = risk_gate
@@ -20,10 +31,9 @@ class PlaceOrderService:
         if existing is not None:
             return Ok(existing)
 
-        notional = command.quantity * command.price
         allowed, reason = await self._risk_gate.authorize(
             symbol=command.symbol,
-            notional=notional,
+            notional=command.quantity * command.price,
             equity=command.equity,
         )
         if not allowed:
@@ -49,12 +59,13 @@ class PlaceOrderService:
             if position is None:
                 from app.modules.trading.domain.portfolio import Position
                 position = Position.empty(submitted.symbol)
-            updated = position.apply_fill(
-                side=submitted.side.value,
-                quantity=submitted.quantity,
-                price=submitted.executed_price,
+            await self._positions.save(
+                position.apply_fill(
+                    side=submitted.side.value,
+                    quantity=submitted.quantity,
+                    price=submitted.executed_price,
+                )
             )
-            await self._positions.save(updated)
 
         await self._publisher.publish(
             OrderStateChanged(
