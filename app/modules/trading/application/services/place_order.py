@@ -3,7 +3,7 @@ from __future__ import annotations
 from app.core.common.clock import Clock
 from app.core.common.result import Err, Ok, Result
 from app.modules.trading.application.commands.place_order import PlaceOrderCommand
-from app.modules.trading.domain.entities import TradeOrder
+from app.modules.trading.domain.entities import OrderStateChanged, TradeOrder
 
 
 class PlaceOrderService:
@@ -35,19 +35,18 @@ class PlaceOrderService:
                 quantity=command.quantity,
                 requested_price=command.price,
                 client_order_id=command.client_order_id,
-                now=self._clock.now(),
+                now=self._clock.utcnow(),
             )
+            submitted = await self._gateway.submit_market_order(order)
         except ValueError as exc:
             return Err(str(exc))
 
-        submitted = await self._gateway.submit_market_order(order)
         await self._repository.save(submitted)
         await self._publisher.publish(
-            {
-                "type": "OrderStateChanged",
-                "order_id": str(submitted.id),
-                "status": submitted.status.value,
-                "symbol": submitted.symbol,
-            }
+            OrderStateChanged(
+                order_id=str(submitted.id),
+                status=submitted.status,
+                symbol=submitted.symbol,
+            )
         )
         return Ok(submitted)
