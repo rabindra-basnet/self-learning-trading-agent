@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import Depends
+from fastapi import Request
 
 from app.core.common.clock import Clock
 from app.core.messaging.bus import EventBus
@@ -14,15 +14,16 @@ _repository = InMemoryOrderRepository()
 _gateway = PaperOrderGateway()
 
 
-def get_place_order_service(
-    clock: Clock,
-    risk_service: RiskService,
-    event_bus: EventBus,
-) -> PlaceOrderService:
+def _resolve(request: Request, interface: type):
+    injector = request.app.state.injector
+    return next(iter(injector.get_dependencies_by_interface(interface)))
+
+
+def get_place_order_service(request: Request) -> PlaceOrderService:
     return PlaceOrderService(
         repository=_repository,
         gateway=_gateway,
-        risk_gate=RiskServiceAdapter(risk_service),
-        clock=clock,
-        publisher=event_bus,
+        risk_gate=RiskServiceAdapter(_resolve(request, RiskService)),
+        clock=_resolve(request, Clock),
+        publisher=_resolve(request, EventBus),
     )
