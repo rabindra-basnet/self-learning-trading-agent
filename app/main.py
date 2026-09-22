@@ -46,11 +46,7 @@ def create_app() -> FastAPI:
             clickhouse.ping(),
             redis.ping(),
         )
-        failed = [
-            name
-            for name, ok in zip(("postgres", "clickhouse", "redis"), checks, strict=True)
-            if not ok
-        ]
+        failed = [name for name, ok in zip(("postgres", "clickhouse", "redis"), checks, strict=True) if not ok]
         if failed:
             # inject_app() owns injector cleanup even when this lifespan
             # raises before yielding, so do not disconnect it twice.
