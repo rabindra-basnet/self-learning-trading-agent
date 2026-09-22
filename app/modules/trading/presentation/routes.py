@@ -47,7 +47,7 @@ def _command(request: PlaceOrderRequest) -> PlaceOrderCommand:
 @router.post("/paper", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
 async def place_paper_order(
     request: PlaceOrderRequest,
-    service: PlaceOrderService = Depends(get_place_order_service),
+    service: Annotated[PlaceOrderService, Depends(get_place_order_service)],
 ) -> OrderResponse:
     result = await service.execute(_command(request))
     if result.is_err:
@@ -59,7 +59,7 @@ async def place_paper_order(
 async def place_live_order(
     request: PlaceOrderRequest,
     user: Annotated[User, Depends(get_current_user)],
-    service: PlaceOrderService = Depends(get_live_place_order_service),
+    service: Annotated[PlaceOrderService, Depends(get_live_place_order_service)],
 ) -> OrderResponse:
     result = await service.execute(_command(request))
     if result.is_err:
