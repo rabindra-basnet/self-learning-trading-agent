@@ -20,6 +20,7 @@ from app.modules.auth.infrastructure.providers.auth.hashers import Pbkdf2Passwor
 from app.modules.auth.infrastructure.providers.auth.jwt.manager import JwtTokenManager
 from app.modules.auth.infrastructure.stores.postgres_repos import PostgresApiKeyRepository, PostgresUserRepository
 from app.modules.backtest.domain.ports import BacktestDataStore, BacktestFeatureComputer, StrategyGateway
+from app.modules.backtest.infrastructure.strategy_gateway import StrategyManagerGateway
 from app.modules.marketdata.application.services import CandleQueryService
 from app.modules.marketdata.domain.ports import CandleStore, MarketDataSource
 from app.modules.marketdata.infrastructure.providers.registry import MarketDataSourceFactory
@@ -66,7 +67,7 @@ def configure_injector() -> DependencyInjector:
             StrategyStore: StrategyLibraryStore,
             BacktestDataStore: ClickHouseCandleStore,
             BacktestFeatureComputer: PandasFeatureComputer,
-            StrategyGateway: StrategyManager,
+            StrategyGateway: StrategyManagerGateway,
             RiskProfileStore: RedisRiskProfileStore,
             RiskService: RiskService,
             PositionRepository: PostgresPositionRepository,
