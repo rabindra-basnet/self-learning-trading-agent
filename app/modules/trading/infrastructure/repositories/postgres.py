@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from sqlalchemy import Numeric, String, select
+from sqlalchemy import Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.infrastructure.capability.database.base import Base
