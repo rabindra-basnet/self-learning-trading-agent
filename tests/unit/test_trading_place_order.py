@@ -1,8 +1,9 @@
 from datetime import UTC, datetime
 from decimal import Decimal
 
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
 
 from app.modules.trading.application.commands.place_order import PlaceOrderCommand
 from app.modules.trading.application.services.place_order import PlaceOrderService
