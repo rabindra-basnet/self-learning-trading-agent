@@ -12,6 +12,7 @@ from app.core.observability.metrics import Meter, NoopMeter
 from app.infrastructure.capability.bus.redis_bus import RedisEventBus
 from app.infrastructure.capability.outbox.redis_outbox import RedisOutbox
 from app.infrastructure.stores.clickhouse.candle_store import ClickHouseCandleStore
+from app.modules.auth.application.services import CurrentUserService
 from app.modules.auth.domain.ports import ApiKeyRepository, PasswordHasher, TokenManager, UserRepository
 from app.modules.auth.infrastructure.providers.auth.hashers import Pbkdf2PasswordHasher
 from app.modules.auth.infrastructure.providers.auth.jwt.manager import JwtTokenManager
@@ -44,6 +45,7 @@ def configure_injector() -> DependencyInjector:
             ApiKeyRepository: PostgresApiKeyRepository,
             PasswordHasher: Pbkdf2PasswordHasher,
             TokenManager: JwtTokenManager,
+            CurrentUserService: CurrentUserService,
             CandleStore: ClickHouseCandleStore,
             CandleQueryPort: CandleQueryService,
             MarketDataSource: MarketDataSourceFactory,
