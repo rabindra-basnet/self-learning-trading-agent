@@ -3,7 +3,6 @@ from decimal import Decimal
 from unittest.mock import AsyncMock
 
 import pytest
-
 from app.modules.trading.application.commands.place_order import PlaceOrderCommand
 from app.modules.trading.application.services.place_order import PlaceOrderService
 from app.modules.trading.infrastructure.gateways.paper import PaperOrderGateway
