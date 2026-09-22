@@ -3,8 +3,6 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-import ccxt.async_support as ccxt
-
 from app.modules.trading.domain.entities import TradeOrder
 
 
