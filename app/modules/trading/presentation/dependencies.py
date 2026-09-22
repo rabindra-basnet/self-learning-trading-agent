@@ -6,17 +6,17 @@ from app.core.common.clock import Clock
 from app.core.config.settings import Settings
 from app.core.messaging.bus import EventBus
 from app.modules.risk.application.services import RiskService
+from app.modules.trading.domain.portfolio_ports import PositionRepository
 from app.modules.trading.application.services.place_order import PlaceOrderService
 from app.modules.trading.infrastructure.gateways.ccxt_gateway import CcxtOrderGateway
 from app.modules.trading.infrastructure.gateways.factory import build_ccxt_exchange
 from app.modules.trading.infrastructure.gateways.paper import PaperOrderGateway
 from app.modules.trading.infrastructure.repositories.in_memory import InMemoryOrderRepository
-from app.modules.trading.infrastructure.repositories.in_memory_positions import InMemoryPositionRepository
+from app.modules.trading.infrastructure.repositories.postgres import PostgresPositionRepository
 from app.modules.trading.infrastructure.risk import RiskServiceAdapter
 
 _repository = InMemoryOrderRepository()
 _paper_gateway = PaperOrderGateway()
-_positions = InMemoryPositionRepository()
 _live_gateway: CcxtOrderGateway | None = None
 
 
@@ -32,7 +32,7 @@ def get_place_order_service(request: Request) -> PlaceOrderService:
         risk_gate=RiskServiceAdapter(_resolve(request, RiskService)),
         clock=_resolve(request, Clock),
         publisher=_resolve(request, EventBus),
-        positions=_positions,
+        positions=_resolve(request, PositionRepository),
     )
 
 
