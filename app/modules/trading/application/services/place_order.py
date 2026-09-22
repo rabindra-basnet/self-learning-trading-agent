@@ -2,22 +2,23 @@ from __future__ import annotations
 
 from app.core.common.clock import Clock
 from app.core.common.result import Err, Ok, Result
-from app.core.messaging.bus import EventBus
-from app.modules.risk.application.services import RiskService
 from app.modules.trading.application.commands.place_order import PlaceOrderCommand
 from app.modules.trading.domain.entities import TradeOrder
 from app.modules.trading.domain.events import OrderStateChanged
+from app.modules.trading.domain.portfolio import Position
+from app.modules.trading.domain.portfolio_ports import PositionRepository
+from app.modules.trading.domain.ports import EventPublisher, OrderGateway, OrderRepository, RiskGate
 
 
 class PlaceOrderService:
     def __init__(
         self,
-        repository,
-        gateway,
-        risk_gate: RiskService,
+        repository: OrderRepository,
+        gateway: OrderGateway,
+        risk_gate: RiskGate,
         clock: Clock,
-        publisher: EventBus,
-        positions,
+        publisher: EventPublisher,
+        positions: PositionRepository,
     ) -> None:
         self._repository = repository
         self._gateway = gateway
@@ -57,8 +58,6 @@ class PlaceOrderService:
         if submitted.status.value == "filled" and submitted.executed_price is not None:
             position = await self._positions.get(submitted.symbol)
             if position is None:
-                from app.modules.trading.domain.portfolio import Position
-
                 position = Position.empty(submitted.symbol)
             await self._positions.save(
                 position.apply_fill(
