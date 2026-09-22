@@ -79,6 +79,23 @@ class AuthService:
         return Ok(claims)
 
 
+class CurrentUserService:
+    """Resolve an authenticated user from an access token."""
+
+    def __init__(self, users: UserRepository, auth: AuthService) -> None:
+        self._users = users
+        self._auth = auth
+
+    async def resolve(self, token: str) -> Result[User, DomainError]:
+        claims = await self._auth.verify_access(token)
+        if claims.is_err:
+            return Err(claims.error_value())
+        user = await self._users.get_by_id(claims.ok_value().subject)
+        if user is None or user.disabled:
+            return Err(DomainError("user_disabled", provider="auth"))
+        return Ok(user)
+
+
 class ApiKeyService:
     def __init__(self, keys: ApiKeyRepository, users: UserRepository, hasher: PasswordHasher, clock: Clock) -> None:
         self._keys = keys
