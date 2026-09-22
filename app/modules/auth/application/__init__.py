@@ -1,3 +1,3 @@
-from app.modules.auth.application.services import ApiKeyService, AuthService
+from app.modules.auth.application.services import ApiKeyService, AuthService, CurrentUserService
 
-__all__ = ["ApiKeyService", "AuthService"]
+__all__ = ["ApiKeyService", "AuthService", "CurrentUserService"]
