@@ -1,7 +1,6 @@
 from datetime import UTC, datetime
 from decimal import Decimal
-
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -33,7 +32,18 @@ async def test_place_order_is_idempotent():
     repo = AsyncMock()
     events = Events()
     positions = AsyncMock()
-    repo.get_by_client_order_id.side_effect = [None, first.ok_value() if False else None]
+    saved_order = None
+
+    async def find_existing(client_order_id):
+        return saved_order
+
+    async def save(order):
+        nonlocal saved_order
+        saved_order = order
+
+    repo.get_by_client_order_id.side_effect = find_existing
+    repo.save.side_effect = save
+
     service = PlaceOrderService(repo, PaperOrderGateway(), AllowRisk(), FixedClock(), events, positions)
     command = PlaceOrderCommand(
         symbol="BTC/USDT",
@@ -51,3 +61,5 @@ async def test_place_order_is_idempotent():
     assert second.is_ok
     assert first.ok_value().id == second.ok_value().id
     assert len(events.events) == 1
+    repo.get_by_client_order_id.assert_awaited_twice()
+    repo.save.assert_awaited_once()
