@@ -11,6 +11,7 @@ from app.modules.trading.infrastructure.gateways.ccxt_gateway import CcxtOrderGa
 from app.modules.trading.infrastructure.gateways.factory import build_ccxt_exchange
 from app.modules.trading.infrastructure.gateways.paper import PaperOrderGateway
 from app.modules.trading.infrastructure.repositories.in_memory import InMemoryOrderRepository
+from app.modules.trading.infrastructure.repositories.in_memory_positions import InMemoryPositionRepository
 from app.modules.trading.infrastructure.risk import RiskServiceAdapter
 
 _repository = InMemoryOrderRepository()
@@ -59,4 +60,5 @@ def get_live_place_order_service(request: Request) -> PlaceOrderService:
         risk_gate=RiskServiceAdapter(_resolve(request, RiskService)),
         clock=_resolve(request, Clock),
         publisher=_resolve(request, EventBus),
+        positions=_positions,
     )
