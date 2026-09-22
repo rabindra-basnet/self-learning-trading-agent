@@ -12,7 +12,7 @@ class Position:
     realized_pnl: Decimal = Decimal("0")
 
     @classmethod
-    def empty(cls, symbol: str) -> "Position":
+    def empty(cls, symbol: str) -> Position:
         return cls(symbol=symbol, quantity=Decimal("0"), average_entry_price=Decimal("0"))
 
     def apply_fill(
@@ -21,7 +21,7 @@ class Position:
         side: str,
         quantity: Decimal,
         price: Decimal,
-    ) -> "Position":
+    ) -> Position:
         if quantity <= 0 or price <= 0:
             raise ValueError("fill quantity and price must be positive")
 
