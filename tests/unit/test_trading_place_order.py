@@ -2,12 +2,12 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
+from unittest.mock import AsyncMock
 
 from app.modules.trading.application.commands.place_order import PlaceOrderCommand
 from app.modules.trading.application.services.place_order import PlaceOrderService
 from app.modules.trading.infrastructure.gateways.paper import PaperOrderGateway
 from app.modules.trading.infrastructure.repositories.in_memory import InMemoryOrderRepository
-from app.modules.trading.infrastructure.repositories.in_memory_positions import InMemoryPositionRepository
 
 
 class FixedClock:
@@ -32,7 +32,8 @@ class Events:
 async def test_place_order_is_idempotent():
     repo = InMemoryOrderRepository()
     events = Events()
-    service = PlaceOrderService(repo, PaperOrderGateway(), AllowRisk(), FixedClock(), events, InMemoryPositionRepository())
+    positions = AsyncMock()
+    service = PlaceOrderService(repo, PaperOrderGateway(), AllowRisk(), FixedClock(), events, positions)
     command = PlaceOrderCommand(
         symbol="BTC/USDT",
         side="buy",
