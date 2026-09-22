@@ -3,10 +3,17 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from magic_di.fastapi import Provide
 
 from app.modules.auth.application.services import CurrentUserService
-from magic_di.fastapi import Provide
 from app.modules.auth.domain.entities import User
+from app.modules.trading.application.commands.place_order import PlaceOrderCommand
+from app.modules.trading.application.services.place_order import PlaceOrderService
+from app.modules.trading.presentation.dependencies import (
+    get_live_place_order_service,
+    get_place_order_service,
+)
+from app.modules.trading.presentation.schemas import OrderResponse, PlaceOrderRequest
 
 
 async def get_current_user(
@@ -21,13 +28,7 @@ async def get_current_user(
     if result.is_err:
         raise HTTPException(status_code=401, detail=result.error_value().message)
     return result.ok_value()
-from app.modules.trading.application.commands.place_order import PlaceOrderCommand
-from app.modules.trading.application.services.place_order import PlaceOrderService
-from app.modules.trading.presentation.dependencies import (
-    get_live_place_order_service,
-    get_place_order_service,
-)
-from app.modules.trading.presentation.schemas import OrderResponse, PlaceOrderRequest
+
 
 router = APIRouter(prefix="/trading/orders", tags=["trading"])
 
