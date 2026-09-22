@@ -58,6 +58,7 @@ class PlaceOrderService:
             position = await self._positions.get(submitted.symbol)
             if position is None:
                 from app.modules.trading.domain.portfolio import Position
+
                 position = Position.empty(submitted.symbol)
             await self._positions.save(
                 position.apply_fill(
