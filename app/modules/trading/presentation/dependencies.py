@@ -12,7 +12,6 @@ from app.modules.trading.infrastructure.gateways.ccxt_gateway import CcxtOrderGa
 from app.modules.trading.infrastructure.gateways.factory import build_ccxt_exchange
 from app.modules.trading.infrastructure.gateways.paper import PaperOrderGateway
 from app.modules.trading.infrastructure.repositories.in_memory import InMemoryOrderRepository
-from app.modules.trading.infrastructure.repositories.postgres import PostgresPositionRepository
 from app.modules.trading.infrastructure.risk import RiskServiceAdapter
 
 _repository = InMemoryOrderRepository()
