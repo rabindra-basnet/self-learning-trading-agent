@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -24,7 +25,7 @@ class TradeOrderRow(Base):
     requested_price: Mapped[Decimal] = mapped_column(Numeric(38, 18), nullable=False)
     executed_price: Mapped[Decimal | None] = mapped_column(Numeric(38, 18), nullable=True)
     client_order_id: Mapped[str] = mapped_column(String(128), nullable=False, unique=True, index=True)
-    created_at: Mapped[object] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(nullable=False)
     rejection_reason: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
 
