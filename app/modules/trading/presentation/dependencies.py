@@ -53,7 +53,7 @@ def get_live_place_order_service(request: Request) -> PlaceOrderService:
         _live_gateway = CcxtOrderGateway(exchange)
 
     return PlaceOrderService(
-        repository=_repository,
+        repository=_resolve(request, OrderRepository),
         gateway=_live_gateway,
         risk_gate=RiskServiceAdapter(_resolve(request, RiskService)),
         clock=_resolve(request, Clock),
