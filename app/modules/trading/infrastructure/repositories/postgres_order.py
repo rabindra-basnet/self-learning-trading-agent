@@ -40,9 +40,7 @@ class PostgresOrderRepository:
 
     async def get_by_client_order_id(self, client_order_id: str) -> TradeOrder | None:
         async with self._session_factory() as session:
-            row = await session.scalar(
-                select(TradeOrderRow).where(TradeOrderRow.client_order_id == client_order_id)
-            )
+            row = await session.scalar(select(TradeOrderRow).where(TradeOrderRow.client_order_id == client_order_id))
         return self._to_domain(row) if row else None
 
     async def save(self, order: TradeOrder) -> None:
