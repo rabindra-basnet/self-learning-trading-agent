@@ -1,20 +1,13 @@
-"""Time source port + implementations (pure, no framework)."""
+"""Pure time-source port and deterministic test implementation."""
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Protocol
-
-from magic_di import Connectable
 
 
 class Clock(Protocol):
     def utcnow(self) -> datetime: ...
-
-
-class SystemClock(Connectable):
-    def utcnow(self) -> datetime:
-        return datetime.now(UTC)
 
 
 class FrozenClock:
