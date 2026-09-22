@@ -30,6 +30,7 @@ from app.modules.risk.infrastructure.stores.redis_store import RedisRiskProfileS
 from app.modules.signals.contracts import CandleQueryPort
 from app.modules.signals.domain.ports import FeatureComputer
 from app.modules.signals.infrastructure.providers.indicators.pandas.adapter import PandasFeatureComputer
+from app.modules.strategies.application.manager import StrategyManager
 from app.modules.strategies.domain.ports import StrategyStore
 from app.modules.strategies.infrastructure.stores.library import StrategyLibraryStore
 from app.modules.trading.domain.portfolio_ports import PositionRepository
@@ -64,6 +65,7 @@ def configure_injector() -> DependencyInjector:
             MarketDataSource: MarketDataSourceFactory,
             FeatureComputer: PandasFeatureComputer,
             StrategyStore: StrategyLibraryStore,
+            StrategyManager: StrategyManager,
             BacktestDataStore: ClickHouseCandleStore,
             BacktestFeatureComputer: PandasFeatureComputer,
             StrategyGateway: StrategyManagerGateway,
