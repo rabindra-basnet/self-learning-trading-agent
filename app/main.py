@@ -52,9 +52,8 @@ def create_app() -> FastAPI:
             if not ok
         ]
         if failed:
-            # If application startup fails before yielding, magic-di cannot
-            # reach its normal disconnect path. Clean up explicitly here.
-            await injector.disconnect()
+            # inject_app() owns injector cleanup even when this lifespan
+            # raises before yielding, so do not disconnect it twice.
             raise FatalSystemError(f"startup dependency check failed: {', '.join(failed)}")
 
         manager = next(iter(injector.get_dependencies_by_interface(StrategyManager)))

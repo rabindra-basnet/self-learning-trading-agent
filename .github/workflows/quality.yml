@@ -108,6 +108,9 @@ jobs:
       - name: Sync dependencies
         run: uv sync --dev --python 3.12
 
+      - name: Apply database migrations
+        run: uv run alembic upgrade head
+
       - name: Start application
         run: |
           set -euo pipefail
@@ -140,6 +143,9 @@ jobs:
           grep -q '"postgres":true' /tmp/health.json
           grep -q '"clickhouse":true' /tmp/health.json
           grep -q '"redis":true' /tmp/health.json
+
+      - name: Exercise real HTTP APIs
+        run: uv run python scripts/api_smoke.py
 
       - name: Stop application
         if: always()
