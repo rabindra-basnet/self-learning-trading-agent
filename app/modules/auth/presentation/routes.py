@@ -12,7 +12,6 @@ from app.core.exceptions.taxonomy import DomainError, http_status_for
 from app.core.logging.setup import get_logger
 from app.modules.auth.application.services import ApiKeyService, AuthService, CurrentUserService
 from app.modules.auth.domain.entities import Role, User
-from app.modules.auth.domain.ports import UserRepository
 from app.modules.auth.presentation.schemas import (
     ApiKeyRequest,
     ApiKeyResponse,

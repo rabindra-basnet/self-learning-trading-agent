@@ -1,12 +1,19 @@
 from __future__ import annotations
 
 from app.core.common.result import Err, Ok, Result
-from app.modules.trading.domain.entities import OrderStateChanged, TradeOrder
+from app.modules.trading.domain.entities import TradeOrder
+from app.modules.trading.domain.events import OrderStateChanged
 from app.modules.trading.domain.portfolio import Position
+from app.modules.trading.domain.portfolio_ports import PositionRepository
+from app.modules.trading.domain.ports import EventPublisher
 
 
 class ApplyFillService:
-    def __init__(self, positions, publisher) -> None:
+    def __init__(
+        self,
+        positions: PositionRepository,
+        publisher: EventPublisher,
+    ) -> None:
         self._positions = positions
         self._publisher = publisher
 

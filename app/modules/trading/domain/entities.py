@@ -48,7 +48,7 @@ class TradeOrder:
         requested_price: Decimal,
         client_order_id: str,
         now: datetime,
-    ) -> "TradeOrder":
+    ) -> TradeOrder:
         if quantity <= 0:
             raise ValueError("quantity must be positive")
         if requested_price <= 0:
@@ -71,7 +71,7 @@ class TradeOrder:
             created_at=now,
         )
 
-    def fill(self, executed_price: Decimal) -> "TradeOrder":
+    def fill(self, executed_price: Decimal) -> TradeOrder:
         if self.status is not OrderStatus.PENDING:
             raise ValueError("only pending orders can be filled")
         if executed_price <= 0:
@@ -82,7 +82,7 @@ class TradeOrder:
             executed_price=executed_price,
         )
 
-    def reject(self, reason: str) -> "TradeOrder":
+    def reject(self, reason: str) -> TradeOrder:
         if self.status is not OrderStatus.PENDING:
             raise ValueError("only pending orders can be rejected")
         return replace(
@@ -91,8 +91,3 @@ class TradeOrder:
             rejection_reason=reason,
         )
 
-
-class OrderStateChanged(DomainEvent):
-    order_id: str
-    status: OrderStatus
-    symbol: str

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import Request
+from typing import TypeVar
 
 from app.core.common.clock import Clock
 from app.core.config.settings import Settings
@@ -18,7 +19,7 @@ _paper_gateway = PaperOrderGateway()
 _live_gateway: CcxtOrderGateway | None = None
 
 
-def _resolve(request: Request, interface: type):
+def _resolve(request: Request, interface: type[T]) -> T:
     injector = request.app.state.injector
     return next(iter(injector.get_dependencies_by_interface(interface)))
 
@@ -53,7 +54,7 @@ def get_live_place_order_service(request: Request) -> PlaceOrderService:
         _live_gateway = CcxtOrderGateway(exchange)
 
     return PlaceOrderService(
-        repository=_repository,
+        repository=_resolve(request, OrderRepository),
         gateway=_live_gateway,
         risk_gate=RiskServiceAdapter(_resolve(request, RiskService)),
         clock=_resolve(request, Clock),

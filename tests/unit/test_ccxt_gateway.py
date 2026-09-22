@@ -1,7 +1,7 @@
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
-
 from app.modules.trading.domain.entities import TradeOrder
 from app.modules.trading.domain.value_objects.order import OrderSide
 from app.modules.trading.infrastructure.gateways.ccxt_gateway import CcxtOrderGateway
@@ -18,8 +18,6 @@ class FakeExchange:
 
 @pytest.mark.asyncio
 async def test_ccxt_gateway_maps_closed_order():
-    from datetime import UTC, datetime
-
     order = TradeOrder.create(
         symbol="BTC/USDT",
         side=OrderSide.BUY,
