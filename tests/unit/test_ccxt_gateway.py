@@ -2,7 +2,8 @@ from decimal import Decimal
 
 import pytest
 
-from app.modules.trading.domain.entities import OrderSide, TradeOrder
+from app.modules.trading.domain.entities import TradeOrder
+from app.modules.trading.domain.value_objects.order import OrderSide
 from app.modules.trading.infrastructure.gateways.ccxt_gateway import CcxtOrderGateway
 
 
