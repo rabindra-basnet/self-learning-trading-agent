@@ -18,6 +18,7 @@ from app.infrastructure.capability.database.dsn import normalize_asyncpg_dsn
 
 # Importing a slice's model module registers its tables on `Base.metadata`.
 from app.modules.auth.infrastructure.stores import postgres_repos  # noqa: F401
+from app.modules.trading.infrastructure.repositories import postgres as trading_postgres  # noqa: F401
 from sqlalchemy import Connection, pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
