@@ -91,8 +91,3 @@ class TradeOrder:
             rejection_reason=reason,
         )
 
-
-class OrderStateChanged(DomainEvent):
-    order_id: str
-    status: OrderStatus
-    symbol: str
