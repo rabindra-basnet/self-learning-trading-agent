@@ -1,17 +1,19 @@
-"""Composition root — binds ports to adapters via magic-di."""
+"""Application composition root — binds ports to infrastructure adapters."""
 
 from __future__ import annotations
 
 from magic_di import DependencyInjector
 
-from app.core.common.clock import Clock, SystemClock
+from app.core.common.clock import Clock
 from app.core.config.settings import Settings
 from app.core.messaging.bus import EventBus
 from app.core.messaging.outbox import Outbox
-from app.core.observability.metrics import Meter, NoopMeter
+from app.core.observability.metrics import Meter
 from app.infrastructure.capability.bus.redis_bus import RedisEventBus
 from app.infrastructure.capability.outbox.redis_outbox import RedisOutbox
-from app.infrastructure.stores.clickhouse.candle_store import ClickHouseCandleStore
+from app.infrastructure.capability.database.candle_store import ClickHouseCandleStore
+from app.infrastructure.observability.metrics import NoopMeter
+from app.infrastructure.time.clock import SystemClock
 from app.modules.auth.domain.ports import ApiKeyRepository, PasswordHasher, TokenManager, UserRepository
 from app.modules.auth.infrastructure.providers.auth.hashers import Pbkdf2PasswordHasher
 from app.modules.auth.infrastructure.providers.auth.jwt.manager import JwtTokenManager
@@ -32,6 +34,13 @@ from app.modules.strategies.infrastructure.stores.library import StrategyLibrary
 
 
 def configure_injector() -> DependencyInjector:
+    """Create the single application composition root.
+
+    magic-di constructs concrete dependencies recursively. The binding map only
+    defines interface-to-adapter decisions; request-level FastAPI dependencies
+    remain in each presentation slice.
+    """
+
     injector = DependencyInjector()
     injector.bind(
         {
