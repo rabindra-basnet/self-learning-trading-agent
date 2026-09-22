@@ -10,8 +10,8 @@ from magic_di.fastapi import Provide
 from app.core.common.result import Result
 from app.core.exceptions.taxonomy import DomainError, http_status_for
 from app.core.logging.setup import get_logger
-from app.modules.auth.application.services import ApiKeyService, AuthService
-from app.modules.auth.domain.entities import Role, TokenClaims, User
+from app.modules.auth.application.services import ApiKeyService, AuthService, CurrentUserService
+from app.modules.auth.domain.entities import Role, User
 from app.modules.auth.domain.ports import UserRepository
 from app.modules.auth.presentation.schemas import (
     ApiKeyRequest,
@@ -36,24 +36,18 @@ def _or_http(result: Result[object, DomainError], status_override: int | None = 
         )
 
 
-async def get_current_claims(request: Request, auth_service: Provide[AuthService]) -> TokenClaims:
+async def get_current_user(
+    request: Request,
+    current_user: Provide[CurrentUserService],
+) -> User:
     auth_header = request.headers.get("Authorization", "")
     scheme, _, token = auth_header.partition(" ")
     if scheme.lower() != "bearer" or not token:
         raise HTTPException(status_code=401, detail="missing_token")
-    result = await auth_service.verify_access(token)
+    result = await current_user.resolve(token)
     if result.is_err:
         raise HTTPException(status_code=401, detail=result.error_value().message)
     return result.ok_value()
-
-
-async def get_current_user(
-    users: Provide[UserRepository], claims: Annotated[TokenClaims, Depends(get_current_claims)]
-) -> User:
-    user = await users.get_by_id(claims.subject)
-    if user is None or user.disabled:
-        raise HTTPException(status_code=401, detail="user_disabled")
-    return user
 
 
 @router.post("/register", response_model=TokenResponse, status_code=201)
