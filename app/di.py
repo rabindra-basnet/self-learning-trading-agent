@@ -32,6 +32,8 @@ from app.modules.signals.infrastructure.providers.indicators.pandas.adapter impo
 from app.modules.strategies.application.manager import StrategyManager
 from app.modules.strategies.domain.ports import StrategyStore
 from app.modules.strategies.infrastructure.stores.library import StrategyLibraryStore
+from app.modules.trading.domain.portfolio_ports import PositionRepository
+from app.modules.trading.infrastructure.repositories.postgres import PostgresPositionRepository
 
 
 def configure_injector() -> DependencyInjector:
@@ -65,6 +67,7 @@ def configure_injector() -> DependencyInjector:
             StrategyGateway: StrategyManager,
             RiskProfileStore: RedisRiskProfileStore,
             RiskService: RiskService,
+            PositionRepository: PostgresPositionRepository,
         }
     )
     return injector
