@@ -31,7 +31,7 @@ class OrderResponse(BaseModel):
     rejection_reason: str | None = None
 
     @classmethod
-    def from_domain(cls, order: TradeOrder) -> "OrderResponse":
+    def from_domain(cls, order: TradeOrder) -> OrderResponse:
         return cls(
             id=order.id,
             symbol=order.symbol,
@@ -52,7 +52,7 @@ class PositionResponse(BaseModel):
     realized_pnl: Decimal
 
     @classmethod
-    def from_domain(cls, position: Position) -> "PositionResponse":
+    def from_domain(cls, position: Position) -> PositionResponse:
         return cls(
             symbol=position.symbol,
             quantity=position.quantity,
