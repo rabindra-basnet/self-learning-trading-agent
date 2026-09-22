@@ -1,0 +1,162 @@
+name: Quality Gate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-gate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Python quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          version: latest
+      - name: Set up Python
+        run: uv python install 3.12
+      - name: Sync dependencies
+        run: uv sync --dev --python 3.12
+      - name: Ruff format check
+        run: uv run ruff format --check .
+      - name: Ruff lint
+        run: uv run ruff check .
+      - name: Mypy
+        run: uv run mypy app
+      - name: Import architecture
+        run: uv run lint-imports
+      - name: Unit tests
+        run: uv run pytest -m unit
+
+  application-smoke:
+    name: Application startup + health smoke test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: trading
+          POSTGRES_PASSWORD: trading
+          POSTGRES_DB: trading
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U trading -d trading"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7.2
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      clickhouse:
+        image: clickhouse/clickhouse-server:24.12
+        env:
+          CLICKHOUSE_DB: trading
+          CLICKHOUSE_USER: default
+          CLICKHOUSE_PASSWORD: ""
+        ports:
+          - 8123:8123
+          - 9000:9000
+        options: >-
+          --health-cmd "wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1"
+          --health-interval 5s --health-timeout 5s --health-retries 30
+
+    env:
+      APP_ENV: test
+      LOG_LEVEL: INFO
+      AUTH_JWT_SECRET: ci-only-secret-key-with-at-least-32-chars
+      AUTH_JWT_ALG: HS256
+      DATABASE_URL: postgresql+asyncpg://trading:trading@localhost:5432/trading
+      CLICKHOUSE_HOST: localhost
+      CLICKHOUSE_PORT: 8123
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ""
+      CLICKHOUSE_DATABASE: trading
+      CLICKHOUSE_SECURE: "false"
+      REDIS_URL: redis://localhost:6379/0
+      EVENT_BUS: redis_streams
+      MARKET_DATA_PROVIDER: binance
+      TRADING_EXECUTION_MODE: paper
+      TRADING_EXCHANGE: binance
+      LLM_PROVIDER: zen
+      LLM_BASE_URL: https://opencode.ai/zen/v1
+      LLM_MODEL: nemotron-3-ultra-free
+      SELF_IMPROVE_ENABLED: "false"
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          version: latest
+      - name: Set up Python
+        run: uv python install 3.12
+      - name: Sync dependencies
+        run: uv sync --dev --python 3.12
+
+      - name: Start application
+        run: |
+          set -euo pipefail
+          uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 > /tmp/trading-agent.log 2>&1 &
+          echo $! > /tmp/trading-agent.pid
+
+      - name: Wait for application
+        run: |
+          set -euo pipefail
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8000/health; then
+              echo
+              exit 0
+            fi
+            if ! kill -0 "$(cat /tmp/trading-agent.pid)" 2>/dev/null; then
+              echo "Application exited before becoming healthy."
+              cat /tmp/trading-agent.log
+              exit 1
+            fi
+            sleep 2
+          done
+          echo "Application did not become healthy."
+          cat /tmp/trading-agent.log
+          exit 1
+
+      - name: Verify all dependencies
+        run: |
+          curl --fail --silent http://127.0.0.1:8000/health | tee /tmp/health.json
+          grep -q '"status":"ok"' /tmp/health.json
+          grep -q '"postgres":true' /tmp/health.json
+          grep -q '"clickhouse":true' /tmp/health.json
+          grep -q '"redis":true' /tmp/health.json
+
+      - name: Stop application
+        if: always()
+        run: |
+          if [ -f /tmp/trading-agent.pid ]; then
+            kill "$(cat /tmp/trading-agent.pid)" 2>/dev/null || true
+            for attempt in {1..10}; do
+              kill -0 "$(cat /tmp/trading-agent.pid)" 2>/dev/null || break
+              sleep 1
+            done
+            kill -9 "$(cat /tmp/trading-agent.pid)" 2>/dev/null || true
+          fi
+
+      - name: Upload application log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: application-smoke-log
+          path: /tmp/trading-agent.log
+          if-no-files-found: ignore
