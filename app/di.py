@@ -33,7 +33,9 @@ from app.modules.strategies.application.manager import StrategyManager
 from app.modules.strategies.domain.ports import StrategyStore
 from app.modules.strategies.infrastructure.stores.library import StrategyLibraryStore
 from app.modules.trading.domain.portfolio_ports import PositionRepository
+from app.modules.trading.domain.ports import OrderRepository
 from app.modules.trading.infrastructure.repositories.postgres import PostgresPositionRepository
+from app.modules.trading.infrastructure.repositories.postgres_order import PostgresOrderRepository
 
 
 def configure_injector() -> DependencyInjector:
@@ -68,6 +70,7 @@ def configure_injector() -> DependencyInjector:
             RiskProfileStore: RedisRiskProfileStore,
             RiskService: RiskService,
             PositionRepository: PostgresPositionRepository,
+            OrderRepository: PostgresOrderRepository,
         }
     )
     return injector
