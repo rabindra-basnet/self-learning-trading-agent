@@ -1,3 +1,5 @@
-from app.core.observability.metrics import Meter, NoopMeter
+"""Observability ports used by application code."""
 
-__all__ = ["Meter", "NoopMeter"]
+from app.core.observability.metrics import Meter
+
+__all__ = ["Meter"]
